@@ -5,6 +5,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import "./globals.css";
 import { ThemeProvider } from "@/components/contexts/theme-provider";
+import { useNote } from "@/hooks/use-note";
+import { Toaster } from "@/components/ui/sonner";
 
 const interSans = Inter({
   variable: "--font-inter-sans",
@@ -37,10 +39,11 @@ export default function RootLayout({
         >
           <SidebarProvider>
             <AppSidebar />
-            <main className="flex-1">
+            <main className="flex-1 min-w-0">
               {/* <SidebarTrigger /> */}
               {children}
             </main>
+            <Toaster />
           </SidebarProvider>
         </ThemeProvider>
       </body>
