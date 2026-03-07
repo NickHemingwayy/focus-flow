@@ -4,25 +4,29 @@ import { Crepe } from "@milkdown/crepe";
 import { collab, collabServiceCtx } from "@milkdown/plugin-collab";
 import * as Y from "yjs";
 import { DexieYProvider } from "y-dexie";
-import { db } from "@/lib/db";
+import { db, Note } from "@/lib/db";
 import "@milkdown/crepe/theme/common/style.css";
 import { FC, useEffect, useRef, useState } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
 const NotePad: FC<{ noteId: string }> = ({ noteId }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const activeDocRef = useRef<Y.Doc | null>(null);
 
+  const localNote = useLiveQuery(() => db.localNotes.get(noteId));
+  const syncedNote = useLiveQuery(() => db.syncedNotes.get(noteId));
+  const note = localNote ?? syncedNote;
+
   useEffect(() => {
-    if (!divRef.current || !noteId) return;
+    if (!divRef.current || !note) return;
 
     // 1. Setup flags for strict mode / cleanup
     let ignore = false;
     let crepeInstance: Crepe | null = null;
 
     const init = async () => {
-      const note = await db.localNotes.get(noteId); // ! This needs to be updated for other stores
-      if (ignore || !note || !note.content) return;
+      if (ignore || (!localNote && !syncedNote) || !note.content) return;
 
       const doc = note.content;
       activeDocRef.current = doc;
@@ -77,7 +81,7 @@ const NotePad: FC<{ noteId: string }> = ({ noteId }) => {
         activeDocRef.current = null;
       }
     };
-  }, [noteId]);
+  }, [note]);
 
   return (
     <div className="w-full h-full relative">

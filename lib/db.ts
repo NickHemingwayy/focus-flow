@@ -25,7 +25,6 @@ const db = new Dexie("NotesDatabase", {
 }) as Dexie & {
   localNotes: EntityTable<Note, "id">;
   syncedNotes: EntityTable<Note, "id">;
-  publicNotes: EntityTable<Note, "id">;
 };
 
 // Schema declaration:
@@ -33,8 +32,6 @@ db.version(1).stores({
   localNotes:
     "id, name, createdAt, updatedAt, pinned, isPublic, isSynced, content: Y.Doc",
   syncedNotes:
-    "id, name, createdAt, updatedAt, pinned, isPublic, isSynced, content: Y.Doc",
-  publicNotes:
     "id, name, createdAt, updatedAt, pinned, isPublic, isSynced, content: Y.Doc",
 });
 

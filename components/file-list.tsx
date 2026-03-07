@@ -6,6 +6,7 @@ import dayjs from "dayjs";
 import { useLiveQuery } from "dexie-react-hooks";
 import {
   Cloud,
+  CloudDownload,
   FileText,
   Globe,
   Lock,
@@ -31,12 +32,8 @@ const UsersFileList = () => {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
 
-  const { deleteNote, renameNote } = useNote();
   const localNotes = useLiveQuery(() => db.localNotes.toArray());
   const syncedNotes = useLiveQuery(() => db.syncedNotes.toArray());
-  const publicNotes = useLiveQuery(() => db.publicNotes.toArray());
-
-  const [editingNoteName, setEditingNoteName] = useState(false);
 
   return (
     <div className="flex flex-col gap-2">
@@ -55,15 +52,17 @@ const UsersFileList = () => {
       <span className="text-muted-foreground ps-3 text-xs block mt-4">
         Public files
       </span>
-      {publicNotes?.map((note) => (
-        <FileListItem note={note} slug={slug} />
-      ))}
     </div>
   );
 };
 
 const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
-  const { deleteNote, renameNote } = useNote();
+  const {
+    deleteNote,
+    renameNote,
+    transitionNoteToCloud,
+    transitionNoteToLocal,
+  } = useNote();
   const [editingNoteName, setEditingNoteName] = useState(false);
 
   const isPublic = note.isPublic;
@@ -119,7 +118,9 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
                     Open in new tab
                   </Link>
                 </ContextMenuItem>
-                <ContextMenuItem onClick={() => deleteNote(note.id)}>
+                <ContextMenuItem
+                  onClick={() => deleteNote(note.id, note.isSynced)}
+                >
                   <Trash />
                   Trash
                 </ContextMenuItem>
@@ -127,7 +128,9 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
               <ContextMenuSeparator />
               <ContextMenuGroup>
                 {!isSynced && !isPublic && (
-                  <ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={() => transitionNoteToCloud(note.id)}
+                  >
                     <Cloud />
                     Add to sync store
                   </ContextMenuItem>
@@ -140,10 +143,12 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
                   </ContextMenuItem>
                 )}
 
-                {isPublic && (
-                  <ContextMenuItem>
-                    <Lock />
-                    Make private
+                {isSynced && (
+                  <ContextMenuItem
+                    onClick={() => transitionNoteToLocal(note.id)}
+                  >
+                    <CloudDownload />
+                    Remove from sync store
                   </ContextMenuItem>
                 )}
               </ContextMenuGroup>
@@ -158,7 +163,7 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
               value={note.name}
               autoFocus
               onChange={(e) => {
-                renameNote(note.id, e.target.value);
+                renameNote(note.id, e.target.value, note.isSynced);
               }}
             />
           )}

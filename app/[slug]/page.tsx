@@ -17,7 +17,9 @@ export default function Note() {
 
   const { renameNote } = useNote();
   const activeNote = useLiveQuery(async () => {
-    const note = await db.localNotes.get(slug);
+    const localNote = await db.localNotes.get(slug);
+    const syncedNote = await db.syncedNotes.get(slug);
+    const note = localNote ?? syncedNote;
     return note ?? null;
   }, [slug]);
 
@@ -28,7 +30,8 @@ export default function Note() {
   }, [activeNote, router]);
 
   const handleRenameNote = (name: string) => {
-    renameNote(slug, name);
+    if (!activeNote) return;
+    renameNote(slug, name, activeNote.isSynced);
   };
 
   useEffect(() => {
@@ -66,9 +69,7 @@ export default function Note() {
           }}
         />
       </div>
-      {activeNote?.id && (
-        <NotePad key={activeNote?.id} noteId={activeNote?.id} />
-      )}
+      {activeNote && <NotePad key={activeNote?.id} noteId={activeNote?.id} />}
     </div>
   );
 }

@@ -31,25 +31,28 @@ const useNote = () => {
     }
   };
 
-  const deleteNote = async (id: string) => {
-    try {
+  const deleteNote = async (id: string, isSynced: boolean) => {
+    if (isSynced) {
+      await db.syncedNotes.delete(id);
+    } else {
       await db.localNotes.delete(id);
-      toast.success("Note deleted successfully", {
-        position: "top-right",
-      });
-    } catch (error) {
-      console.log(error);
-      toast.error("Oops! Error deleting note", {
-        position: "top-right",
-      });
     }
+    toast.success("Note deleted successfully", {
+      position: "top-right",
+    });
   };
 
-  const renameNote = async (id: string, name: string) => {
+  const renameNote = async (id: string, name: string, isSynced: boolean) => {
     try {
-      await db.localNotes.update(id, {
-        name,
-      });
+      if (isSynced) {
+        await db.syncedNotes.update(id, {
+          name,
+        });
+      } else {
+        await db.localNotes.update(id, {
+          name,
+        });
+      }
     } catch (error) {
       console.log(error);
       toast.error("Oops! Error renaming note", {
@@ -58,17 +61,79 @@ const useNote = () => {
     }
   };
 
-  const addToSyncStore = async (note: Note) => {
-    const isPublic = note.isPublic;
-    const isSynced = note.isSynced;
+  /**
+   * Atomically moves a note from localNotes to syncedNotes
+   * @param noteId The ID of the note to transition
+   */
+  async function transitionNoteToCloud(noteId: string) {
+    return await db.transaction(
+      "rw",
+      [db.localNotes, db.syncedNotes],
+      async () => {
+        // 1. Find the note in the local table
+        const note = await db.localNotes.get(noteId);
 
-    if (isSynced || isPublic) return;
-  };
+        if (!note) {
+          throw new Error("Note not found in local storage.");
+        }
+
+        // 2. Prepare the note for the cloud
+        const syncedNote: Note = {
+          ...note,
+          isSynced: true, // Update the flag
+          updatedAt: new Date(),
+        };
+
+        // 3. Add to syncedNotes and Delete from localNotes
+        // By doing this inside the transaction, if one fails, both fail.
+        await db.syncedNotes.add(syncedNote);
+        await db.localNotes.delete(noteId);
+
+        return syncedNote;
+      },
+    );
+  }
+
+  /**
+   * Atomically moves a note from syncedNotes to localNotes
+   * @param noteId The ID of the note to move back to local-only storage
+   */
+  async function transitionNoteToLocal(noteId: string) {
+    return await db.transaction(
+      "rw",
+      [db.localNotes, db.syncedNotes],
+      async () => {
+        // 1. Find the note in the synced table
+        const note = await db.syncedNotes.get(noteId);
+
+        if (!note) {
+          throw new Error("Note not found in synced storage.");
+        }
+
+        // 2. Prepare the note for local storage
+        const localNote: Note = {
+          ...note,
+          isSynced: false,
+          isPublic: false, // Usually, if it's local, it shouldn't be public
+          updatedAt: new Date(),
+        };
+
+        // 3. Add to localNotes and Delete from syncedNotes
+        // This ensures the note is never "lost" during the swap
+        await db.localNotes.add(localNote);
+        await db.syncedNotes.delete(noteId);
+
+        return localNote;
+      },
+    );
+  }
 
   return {
     createNote,
     deleteNote,
     renameNote,
+    transitionNoteToCloud,
+    transitionNoteToLocal,
   };
 };
 
