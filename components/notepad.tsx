@@ -3,54 +3,79 @@
 import { Crepe } from "@milkdown/crepe";
 import { collab, collabServiceCtx } from "@milkdown/plugin-collab";
 import * as Y from "yjs";
-import { IndexeddbPersistence } from "y-indexeddb";
-import { Awareness } from "y-protocols/awareness"; // Necessary for cursor state
+import { DexieYProvider } from "y-dexie";
+import { db } from "@/lib/db";
 import "@milkdown/crepe/theme/common/style.css";
 import { FC, useEffect, useRef, useState } from "react";
 
-const NotePad: FC<{ noteId: number }> = ({ noteId }) => {
+const NotePad: FC<{ noteId: string }> = ({ noteId }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
+  const activeDocRef = useRef<Y.Doc | null>(null);
 
   useEffect(() => {
-    if (!divRef.current) return;
+    if (!divRef.current || !noteId) return;
 
-    // 1. Initialize Yjs Doc & Local Persistence
-    const doc = new Y.Doc();
-    const persistence = new IndexeddbPersistence(`note-${noteId}`, doc);
+    // 1. Setup flags for strict mode / cleanup
+    let ignore = false;
+    let crepeInstance: Crepe | null = null;
 
-    // 2. Create standalone Awareness (since IDB doesn't provide it)
-    const awareness = new Awareness(doc);
+    const init = async () => {
+      const note = await db.localNotes.get(noteId); // ! This needs to be updated for other stores
+      if (ignore || !note || !note.content) return;
 
-    // 3. Initialize Crepe
-    const crepe = new Crepe({
-      root: divRef.current,
-      defaultValue: "",
-    });
+      const doc = note.content;
+      activeDocRef.current = doc;
 
-    // 4. Inject Collab Plugin
-    crepe.editor.use(collab);
+      const provider = DexieYProvider.load(doc);
+      await provider.whenLoaded;
 
-    crepe.create().then(() => {
-      // 5. Wait for IndexedDB to restore existing data
-      persistence.on("synced", () => {
-        crepe.editor.action((ctx) => {
-          const collabService = ctx.get(collabServiceCtx);
+      if (ignore) {
+        DexieYProvider.release(doc);
+        return;
+      }
 
-          collabService
-            .bindDoc(doc)
-            .setAwareness(awareness) // Use our manual awareness
-            .connect();
-        });
-        setIsReady(true);
+      // 2. CRITICAL: Clear the container before creating the editor
+      // This prevents the "double editor" bug
+      if (divRef.current) {
+        divRef.current.innerHTML = "";
+      }
+
+      crepeInstance = new Crepe({
+        root: divRef.current,
+        defaultValue: "",
       });
-    });
+
+      crepeInstance.editor.use(collab);
+      await crepeInstance.create();
+
+      if (ignore) {
+        crepeInstance.destroy();
+        return;
+      }
+
+      crepeInstance.editor.action((ctx) => {
+        const collabService = ctx.get(collabServiceCtx);
+        collabService.bindDoc(doc).setAwareness(provider.awareness).connect();
+      });
+
+      setIsReady(true);
+    };
+
+    init();
 
     return () => {
-      persistence.destroy();
-      awareness.destroy();
-      crepe.destroy();
-      doc.destroy();
+      ignore = true; // Prevents async logic from finishing if unmounted
+      setIsReady(false);
+
+      if (crepeInstance) {
+        crepeInstance.destroy();
+      }
+
+      if (activeDocRef.current) {
+        DexieYProvider.release(activeDocRef.current);
+        activeDocRef.current = null;
+      }
     };
   }, [noteId]);
 
@@ -58,7 +83,9 @@ const NotePad: FC<{ noteId: number }> = ({ noteId }) => {
     <div className="w-full h-full relative">
       <div
         ref={divRef}
-        className={`w-full h-full ${isReady ? "opacity-100" : "opacity-0"}`}
+        className={`w-full h-full transition-opacity duration-300 ${
+          isReady ? "opacity-100" : "opacity-0"
+        }`}
       />
     </div>
   );

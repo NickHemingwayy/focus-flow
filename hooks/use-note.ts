@@ -1,23 +1,24 @@
-import { db } from "@/lib/db";
-import { useLiveQuery } from "dexie-react-hooks";
+import { db, Note } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 
 const useNote = () => {
-  const notes = useLiveQuery(() => db.notes.toArray());
   const router = useRouter();
 
   const createNote = async () => {
     try {
       const newNote = {
-        name: "Untitled",
+        id: uuidv4(),
+        name: "",
+        pinned: false,
         createdAt: new Date(),
         updatedAt: new Date(),
+        isPublic: false,
+        isSynced: false,
       };
 
-      console.log("newNote: ", newNote);
-
-      const id = await db.notes.add(newNote);
+      const id = await db.localNotes.add(newNote);
       router.push(`/${id}`);
       toast.success("Note created successfully", {
         position: "top-right",
@@ -30,9 +31,9 @@ const useNote = () => {
     }
   };
 
-  const deleteNote = async (id: number) => {
+  const deleteNote = async (id: string) => {
     try {
-      await db.notes.delete(id);
+      await db.localNotes.delete(id);
       toast.success("Note deleted successfully", {
         position: "top-right",
       });
@@ -44,9 +45,9 @@ const useNote = () => {
     }
   };
 
-  const renameNote = async (id: number, name: string) => {
+  const renameNote = async (id: string, name: string) => {
     try {
-      await db.notes.update(id, {
+      await db.localNotes.update(id, {
         name,
       });
     } catch (error) {
@@ -57,8 +58,14 @@ const useNote = () => {
     }
   };
 
+  const addToSyncStore = async (note: Note) => {
+    const isPublic = note.isPublic;
+    const isSynced = note.isSynced;
+
+    if (isSynced || isPublic) return;
+  };
+
   return {
-    notes,
     createNote,
     deleteNote,
     renameNote,

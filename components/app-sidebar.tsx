@@ -21,9 +21,7 @@ export function AppSidebar() {
         <Button variant="ghost" className="justify-start text-muted-foreground">
           <Search /> Search
         </Button>
-        <span className="text-muted-foreground ps-3 text-xs block mt-4">
-          Files
-        </span>
+
         <UsersFileList />
         <ThemeToggle />
       </SidebarContent>

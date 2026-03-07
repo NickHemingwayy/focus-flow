@@ -5,32 +5,30 @@ import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { use, useEffect, useRef, useState } from "react";
 
 export default function Note() {
+  const router = useRouter();
   const params = useParams<{ slug: string }>();
-  // params will be { slug: 'value-from-url' }
+
   const slug = params?.slug;
 
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const { renameNote } = useNote();
+  const activeNote = useLiveQuery(async () => {
+    const note = await db.localNotes.get(slug);
+    return note ?? null;
+  }, [slug]);
 
-  const activeNote = useLiveQuery(() => db.notes.get(parseInt(slug)));
-
-  // db.on("ready", async () => {
-  //   const data = await db.notes.get(parseInt(slug));
-  //   console.log("DB is ready and here is the data: ", data);
-  //   if (!data) {
-  //     router.push(`/`);
-  //   }
-  //   // console.log("DB is ready and here is the data: ", data);
-  // });
-
-  // console.log(activeNote);
+  useEffect(() => {
+    if (activeNote === null) {
+      router.push("/"); // Redirect to the homepage
+    }
+  }, [activeNote, router]);
 
   const handleRenameNote = (name: string) => {
-    renameNote(parseInt(slug), name);
+    renameNote(slug, name);
   };
 
   useEffect(() => {
@@ -68,7 +66,9 @@ export default function Note() {
           }}
         />
       </div>
-      <NotePad key={activeNote?.id} noteId={activeNote?.id} />
+      {activeNote?.id && (
+        <NotePad key={activeNote?.id} noteId={activeNote?.id} />
+      )}
     </div>
   );
 }
