@@ -1,37 +1,37 @@
 "use client";
 import NotePad from "@/components/notepad";
 import { useNote } from "@/hooks/use-note";
+import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { useParams, notFound, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 export default function Note() {
-  const router = useRouter();
   const params = useParams<{ slug: string }>();
   // params will be { slug: 'value-from-url' }
   const slug = params?.slug;
 
-  const notes = useNote((state) => state.notes);
-  const updateNote = useNote((state) => state.updateNote);
-  const hasHydrated = useNote((state) => state.hasHydrated);
-  const renameNote = useNote((state) => state.renameNote);
-
   const titleRef = useRef<HTMLHeadingElement>(null);
 
-  const activeNote = useMemo(() => {
-    if (!hasHydrated) return;
-    if (!slug || !notes) return null;
+  const { renameNote } = useNote();
 
-    const note = notes.find((note) => note.id === slug);
+  const activeNote = useLiveQuery(() => db.notes.get(parseInt(slug)));
 
-    if (!note) {
-      router.push(`/`);
-    }
+  // db.on("ready", async () => {
+  //   const data = await db.notes.get(parseInt(slug));
+  //   console.log("DB is ready and here is the data: ", data);
+  //   if (!data) {
+  //     router.push(`/`);
+  //   }
+  //   // console.log("DB is ready and here is the data: ", data);
+  // });
 
-    return note;
-  }, [notes, slug, hasHydrated]);
+  // console.log(activeNote);
 
-  const docString = activeNote?.content || "";
+  const handleRenameNote = (name: string) => {
+    renameNote(parseInt(slug), name);
+  };
 
   useEffect(() => {
     if (titleRef.current && activeNote) {
@@ -64,15 +64,11 @@ export default function Note() {
             if (text === "") {
               e.currentTarget.innerHTML = "";
             }
-            renameNote(activeNote?.id, text);
+            handleRenameNote(text);
           }}
         />
       </div>
-      <NotePad
-        key={activeNote?.id}
-        value={docString}
-        onChange={(docString) => updateNote(activeNote.id, docString)}
-      />
+      <NotePad key={activeNote?.id} noteId={activeNote?.id} />
     </div>
   );
 }

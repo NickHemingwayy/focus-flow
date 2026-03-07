@@ -1,77 +1,68 @@
-"use client";
-import { create } from "zustand";
-import { createJSONStorage, persist } from "zustand/middleware";
-import { v4 as uuidv4 } from "uuid";
+import { db } from "@/lib/db";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-export interface NoteType {
-  id: string;
-  name: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-}
-interface NotePadState {
-  hasHydrated: boolean;
-  setHasHydrated: (value: boolean) => void;
+const useNote = () => {
+  const notes = useLiveQuery(() => db.notes.toArray());
+  const router = useRouter();
 
-  notes: NoteType[];
+  const createNote = async () => {
+    try {
+      const newNote = {
+        name: "Untitled",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-  // Actions
-  createNote: (id: string) => void;
-  updateNote: (id: string, content: string) => void;
-  deleteNote: (id: string) => void;
-  renameNote: (id: string, name: string) => void;
-}
+      console.log("newNote: ", newNote);
 
-export const useNote = create<NotePadState>()(
-  persist(
-    (set) => ({
-      hasHydrated: false,
-      setHasHydrated: (value) => set({ hasHydrated: value }),
-      // State
-      notes: [],
-      // Actions
-      createNote: (id) =>
-        set((state) => {
-          const note = {
-            id: id,
-            name: "Untitled",
-            content: "",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          return { notes: [note, ...state.notes] };
-        }),
-      updateNote: (id, content) =>
-        set((state) => {
-          return {
-            notes: state.notes.map((n) =>
-              n.id === id
-                ? { ...n, content, updatedAt: new Date().toISOString() }
-                : n,
-            ),
-          };
-        }),
-      deleteNote: (id) =>
-        set((state) => {
-          return {
-            notes: state.notes.filter((n) => n.id !== id),
-          };
-        }),
-      renameNote: (id, name) =>
-        set((state) => {
-          return {
-            notes: state.notes.map((n) => (n.id === id ? { ...n, name } : n)),
-          };
-        }),
-    }),
-    {
-      name: "note-storage", // unique name for localStorage
-      storage: createJSONStorage(() => localStorage),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
-      },
-    },
-  ),
-);
+      const id = await db.notes.add(newNote);
+      router.push(`/${id}`);
+      toast.success("Note created successfully", {
+        position: "top-right",
+      });
+    } catch (error) {
+      console.log(error);
+      toast.error("Oops! Error creating note", {
+        position: "top-right",
+      });
+    }
+  };
+
+  const deleteNote = async (id: number) => {
+    try {
+      await db.notes.delete(id);
+      toast.success("Note deleted successfully", {
+        position: "top-right",
+      });
+    } catch (error) {
+      console.log(error);
+      toast.error("Oops! Error deleting note", {
+        position: "top-right",
+      });
+    }
+  };
+
+  const renameNote = async (id: number, name: string) => {
+    try {
+      await db.notes.update(id, {
+        name,
+      });
+    } catch (error) {
+      console.log(error);
+      toast.error("Oops! Error renaming note", {
+        position: "top-right",
+      });
+    }
+  };
+
+  return {
+    notes,
+    createNote,
+    deleteNote,
+    renameNote,
+  };
+};
+
+export { useNote };

@@ -5,7 +5,6 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import "./globals.css";
 import { ThemeProvider } from "@/components/contexts/theme-provider";
-import { useNote } from "@/hooks/use-note";
 import { Toaster } from "@/components/ui/sonner";
 
 const interSans = Inter({

@@ -1,8 +1,14 @@
 "use client";
 import { useNote } from "@/hooks/use-note";
-import { Button } from "./ui/button";
-import { File, FileText, MoveUpRight, SquarePen, Trash } from "lucide-react";
+import { db } from "@/lib/db";
+import { cn } from "@/lib/utils";
+import dayjs from "dayjs";
+import { useLiveQuery } from "dexie-react-hooks";
+import { FileText, MoveUpRight, SquarePen, Trash } from "lucide-react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import React, { useState } from "react";
+import { Button } from "./ui/button";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -11,33 +17,19 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "./ui/context-menu";
-import dayjs from "dayjs";
-import { useParams } from "next/navigation";
-import { cn } from "@/lib/utils";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTitle,
-  PopoverTrigger,
-} from "./ui/popover";
-import { useState } from "react";
 import { Input } from "./ui/input";
-import { toast } from "sonner";
-import React from "react";
 
 const UsersFileList = () => {
   const params = useParams<{ slug: string }>();
-  const slug = params?.slug;
+  const slug = parseInt(params?.slug);
 
-  const notes = useNote((state) => state.notes);
-  const deleteNote = useNote((state) => state.deleteNote);
-  const renameNote = useNote((state) => state.renameNote);
+  const { deleteNote, renameNote, notes } = useNote();
 
   const [editingNoteName, setEditingNoteName] = useState(false);
 
   return (
     <div className="flex flex-col gap-2">
-      {notes.map((note) => (
+      {notes?.map((note) => (
         <React.Fragment key={note.id}>
           <ContextMenu
             onOpenChange={(oc) => {
