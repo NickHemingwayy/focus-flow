@@ -1,15 +1,14 @@
 "use client";
 import { useNote } from "@/hooks/use-note";
-import { db, Note } from "@/lib/db";
+import { NoteRecord } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@powersync/react";
 import dayjs from "dayjs";
-import { useLiveQuery } from "dexie-react-hooks";
 import {
   Cloud,
   CloudDownload,
   FileText,
   Globe,
-  Lock,
   MoveUpRight,
   SquarePen,
   Trash,
@@ -32,8 +31,10 @@ const UsersFileList = () => {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
 
-  const localNotes = useLiveQuery(() => db.localNotes.toArray());
-  const syncedNotes = useLiveQuery(() => db.syncedNotes.toArray());
+  const { data: notes } = useQuery("SELECT * FROM notes");
+
+  const localNotes = notes?.filter((note) => note.is_synced === 0);
+  const syncedNotes = notes?.filter((note) => note.is_synced === 1);
 
   return (
     <div className="flex flex-col gap-2">
@@ -41,13 +42,13 @@ const UsersFileList = () => {
         Local files
       </span>
       {localNotes?.map((note) => (
-        <FileListItem note={note} slug={slug} />
+        <FileListItem note={note} slug={slug} key={note.id} />
       ))}
       <span className="text-muted-foreground ps-3 text-xs block mt-4">
         Synced files
       </span>
       {syncedNotes?.map((note) => (
-        <FileListItem note={note} slug={slug} />
+        <FileListItem note={note} slug={slug} key={note.id} />
       ))}
       <span className="text-muted-foreground ps-3 text-xs block mt-4">
         Public files
@@ -56,17 +57,18 @@ const UsersFileList = () => {
   );
 };
 
-const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
+const FileListItem = ({ note, slug }: { note: NoteRecord; slug: string }) => {
   const {
     deleteNote,
     renameNote,
     transitionNoteToCloud,
     transitionNoteToLocal,
   } = useNote();
+
   const [editingNoteName, setEditingNoteName] = useState(false);
 
-  const isPublic = note.isPublic;
-  const isSynced = note.isSynced;
+  const isPublic = note.is_public;
+  const isSynced = note.is_synced;
 
   return (
     <React.Fragment key={note.id}>
@@ -118,9 +120,7 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
                     Open in new tab
                   </Link>
                 </ContextMenuItem>
-                <ContextMenuItem
-                  onClick={() => deleteNote(note.id, note.isSynced)}
-                >
+                <ContextMenuItem onClick={() => deleteNote(note.id)}>
                   <Trash />
                   Trash
                 </ContextMenuItem>
@@ -155,7 +155,7 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
               <ContextMenuSeparator />
               <span className="text-xs text-muted-foreground px-2 pb-1 block">
                 Last edited{" "}
-                {dayjs(note.updatedAt).format("MMM D, YYYY, h:mm A")}
+                {dayjs(note.updated_at).format("MMM D, YYYY, h:mm A")}
               </span>
             </>
           ) : (
@@ -163,7 +163,7 @@ const FileListItem = ({ note, slug }: { note: Note; slug: string }) => {
               value={note.name}
               autoFocus
               onChange={(e) => {
-                renameNote(note.id, e.target.value, note.isSynced);
+                renameNote(note.id, e.target.value);
               }}
             />
           )}

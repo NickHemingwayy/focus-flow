@@ -1,46 +1,74 @@
 "use client";
 
+import { FC, useEffect, useRef, useState } from "react";
 import { Crepe } from "@milkdown/crepe";
 import { collab, collabServiceCtx } from "@milkdown/plugin-collab";
 import * as Y from "yjs";
-import { DexieYProvider } from "y-dexie";
-import { db, Note } from "@/lib/db";
+import { usePowerSync, useQuery } from "@powersync/react"; // Adjust based on your setup
 import "@milkdown/crepe/theme/common/style.css";
-import { FC, useEffect, useRef, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
+import { NoteRecord } from "@/lib/powersync/app-schema";
+import debounce from "lodash.debounce";
 
-const NotePad: FC<{ noteId: string }> = ({ noteId }) => {
+const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
-  const activeDocRef = useRef<Y.Doc | null>(null);
 
-  const localNote = useLiveQuery(() => db.localNotes.get(noteId));
-  const syncedNote = useLiveQuery(() => db.syncedNotes.get(noteId));
-  const note = localNote ?? syncedNote;
+  const activeDocRef = useRef<Y.Doc | null>(null);
+  const isInitializedRef = useRef(false);
+
+  // 1. PowerSync instances
+  const powerSync = usePowerSync();
 
   useEffect(() => {
-    if (!divRef.current || !note) return;
+    // Only initialize once we have the container and the initial note data
+    if (!divRef.current || !note || isInitializedRef.current) return;
 
-    // 1. Setup flags for strict mode / cleanup
     let ignore = false;
     let crepeInstance: Crepe | null = null;
 
     const init = async () => {
-      if (ignore || (!localNote && !syncedNote) || !note.content) return;
-
-      const doc = note.content;
+      // 2. Initialize a fresh Yjs Document
+      const doc = new Y.Doc();
       activeDocRef.current = doc;
 
-      const provider = DexieYProvider.load(doc);
-      await provider.whenLoaded;
+      // 3. Load existing state from PowerSync (assuming it's stored as a Uint8Array or base64 string)
+      if (note.content) {
+        try {
+          // Note: If you store it as a base64 string in SQLite, decode it to Uint8Array first.
+          // If your DB returns a buffer/Uint8Array, you can pass it directly.
+          const binaryState =
+            typeof note.content === "string"
+              ? Uint8Array.from(atob(note.content), (c) => c.charCodeAt(0))
+              : note.content;
 
-      if (ignore) {
-        DexieYProvider.release(doc);
-        return;
+          Y.applyUpdate(doc, binaryState);
+        } catch (e) {
+          console.error("Failed to parse Yjs document state from PowerSync", e);
+        }
       }
 
-      // 2. CRITICAL: Clear the container before creating the editor
-      // This prevents the "double editor" bug
+      const handleUpdate = debounce(() => {
+        // Encode the full document state
+        const stateVector = Y.encodeStateAsUpdate(doc);
+        // Convert to base64 for safe SQLite text column storage (or save raw if using BLOB)
+        const base64State = btoa(
+          String.fromCharCode.apply(null, stateVector as any),
+        );
+
+        console.log("Saving state to PowerSync", base64State);
+
+        powerSync.execute("UPDATE notes SET content = ? WHERE id = ?", [
+          base64State,
+          note.id,
+        ]);
+      }, 300);
+
+      // 4. Listen for local editor changes and save them back to PowerSync
+      doc.on("update", handleUpdate);
+
+      if (ignore) return;
+
+      // Clear container to prevent the double editor bug
       if (divRef.current) {
         divRef.current.innerHTML = "";
       }
@@ -60,28 +88,31 @@ const NotePad: FC<{ noteId: string }> = ({ noteId }) => {
 
       crepeInstance.editor.action((ctx) => {
         const collabService = ctx.get(collabServiceCtx);
-        collabService.bindDoc(doc).setAwareness(provider.awareness).connect();
+        // Bind the document to the editor
+        collabService.bindDoc(doc).connect();
       });
 
+      isInitializedRef.current = true;
       setIsReady(true);
     };
 
     init();
 
     return () => {
-      ignore = true; // Prevents async logic from finishing if unmounted
+      // Cleanup
+      ignore = true;
       setIsReady(false);
+      isInitializedRef.current = false;
 
       if (crepeInstance) {
         crepeInstance.destroy();
       }
-
       if (activeDocRef.current) {
-        DexieYProvider.release(activeDocRef.current);
+        activeDocRef.current.destroy();
         activeDocRef.current = null;
       }
     };
-  }, [note]);
+  }, [note, powerSync]); // Keep dependencies tight
 
   return (
     <div className="w-full h-full relative">

@@ -2,7 +2,9 @@
 import NotePad from "@/components/notepad";
 import { useNote } from "@/hooks/use-note";
 import { db } from "@/lib/db";
+import { NoteRecord } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
+import { usePowerSync, useQuery } from "@powersync/react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useParams, useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState } from "react";
@@ -10,28 +12,43 @@ import { use, useEffect, useRef, useState } from "react";
 export default function Note() {
   const router = useRouter();
   const params = useParams<{ slug: string }>();
+  const powersync = usePowerSync();
+
+  // const { data: notes } = useQuery("SELECT * FROM notes");
 
   const slug = params?.slug;
 
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const { renameNote } = useNote();
-  const activeNote = useLiveQuery(async () => {
-    const localNote = await db.localNotes.get(slug);
-    const syncedNote = await db.syncedNotes.get(slug);
-    const note = localNote ?? syncedNote;
-    return note ?? null;
-  }, [slug]);
-
+  const [activeNote, setActiveNote] = useState<NoteRecord | null>(null);
   useEffect(() => {
-    if (activeNote === null) {
-      router.push("/"); // Redirect to the homepage
-    }
-  }, [activeNote, router]);
+    powersync.get("SELECT * from notes where id = ?", [slug]).then((note) => {
+      console.log(note);
+      if (note) {
+        setActiveNote(note as NoteRecord);
+      }
+    });
+  }, []);
+
+  // console.log(activeNote);
+
+  // const activeNote = useLiveQuery(async () => {
+  //   const localNote = await db.localNotes.get(slug);
+  //   const syncedNote = await db.syncedNotes.get(slug);
+  //   const note = localNote ?? syncedNote;
+  //   return note ?? null;
+  // }, [slug]);
+
+  // useEffect(() => {
+  //   if (activeNote === null) {
+  //     router.push("/"); // Redirect to the homepage
+  //   }
+  // }, [activeNote, router]);
 
   const handleRenameNote = (name: string) => {
     if (!activeNote) return;
-    renameNote(slug, name, activeNote.isSynced);
+    renameNote(slug, name);
   };
 
   useEffect(() => {
@@ -69,7 +86,7 @@ export default function Note() {
           }}
         />
       </div>
-      {activeNote && <NotePad key={activeNote?.id} noteId={activeNote?.id} />}
+      {activeNote && <NotePad key={activeNote?.id} note={activeNote} />}
     </div>
   );
 }

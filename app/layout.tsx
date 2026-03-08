@@ -4,8 +4,9 @@ import { Geist, Geist_Mono, Inter } from "next/font/google";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import "./globals.css";
-import { ThemeProvider } from "@/components/contexts/theme-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import SystemProvider from "@/components/providers/system-provider";
 
 const interSans = Inter({
   variable: "--font-inter-sans",
@@ -36,14 +37,16 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SidebarProvider>
-            <AppSidebar />
-            <main className="flex-1 min-w-0">
-              {/* <SidebarTrigger /> */}
-              {children}
-            </main>
-            <Toaster />
-          </SidebarProvider>
+          <SystemProvider>
+            <SidebarProvider>
+              <AppSidebar />
+              <main className="flex-1 min-w-0">
+                {/* <SidebarTrigger /> */}
+                {children}
+              </main>
+              <Toaster />
+            </SidebarProvider>
+          </SystemProvider>
         </ThemeProvider>
       </body>
     </html>

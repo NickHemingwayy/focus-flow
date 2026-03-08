@@ -1,24 +1,22 @@
 import { db, Note } from "@/lib/db";
+import { usePowerSync } from "@powersync/react";
+import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 
 const useNote = () => {
   const router = useRouter();
+  const powersync = usePowerSync();
 
   const createNote = async () => {
     try {
-      const newNote = {
-        id: uuidv4(),
-        name: "",
-        pinned: false,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isPublic: false,
-        isSynced: false,
-      };
+      const id = uuidv4();
 
-      const id = await db.localNotes.add(newNote);
+      await powersync.execute(
+        "INSERT INTO notes (id, name, created_at, updated_at, is_pinned, is_public, is_synced) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [id, "", dayjs().format(), dayjs().format(), 0, 0, 0],
+      );
       router.push(`/${id}`);
       toast.success("Note created successfully", {
         position: "top-right",
@@ -31,28 +29,19 @@ const useNote = () => {
     }
   };
 
-  const deleteNote = async (id: string, isSynced: boolean) => {
-    if (isSynced) {
-      await db.syncedNotes.delete(id);
-    } else {
-      await db.localNotes.delete(id);
-    }
+  const deleteNote = async (id: string) => {
+    await powersync.execute("DELETE FROM notes WHERE id = ?", [id]);
     toast.success("Note deleted successfully", {
       position: "top-right",
     });
   };
 
-  const renameNote = async (id: string, name: string, isSynced: boolean) => {
+  const renameNote = async (id: string, name: string) => {
     try {
-      if (isSynced) {
-        await db.syncedNotes.update(id, {
-          name,
-        });
-      } else {
-        await db.localNotes.update(id, {
-          name,
-        });
-      }
+      await powersync.execute("UPDATE notes SET name = ? WHERE id = ?", [
+        name,
+        id,
+      ]);
     } catch (error) {
       console.log(error);
       toast.error("Oops! Error renaming note", {
@@ -66,32 +55,18 @@ const useNote = () => {
    * @param noteId The ID of the note to transition
    */
   async function transitionNoteToCloud(noteId: string) {
-    return await db.transaction(
-      "rw",
-      [db.localNotes, db.syncedNotes],
-      async () => {
-        // 1. Find the note in the local table
-        const note = await db.localNotes.get(noteId);
-
-        if (!note) {
-          throw new Error("Note not found in local storage.");
-        }
-
-        // 2. Prepare the note for the cloud
-        const syncedNote: Note = {
-          ...note,
-          isSynced: true, // Update the flag
-          updatedAt: new Date(),
-        };
-
-        // 3. Add to syncedNotes and Delete from localNotes
-        // By doing this inside the transaction, if one fails, both fail.
-        await db.syncedNotes.add(syncedNote);
-        await db.localNotes.delete(noteId);
-
-        return syncedNote;
-      },
-    );
+    try {
+      await powersync.execute("UPDATE notes SET is_synced = 1 WHERE id = ?", [
+        noteId,
+      ]);
+      toast.success("Note moved to cloud", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error("Oops! Error transitioning note", {
+        position: "top-right",
+      });
+    }
   }
 
   /**
@@ -99,33 +74,18 @@ const useNote = () => {
    * @param noteId The ID of the note to move back to local-only storage
    */
   async function transitionNoteToLocal(noteId: string) {
-    return await db.transaction(
-      "rw",
-      [db.localNotes, db.syncedNotes],
-      async () => {
-        // 1. Find the note in the synced table
-        const note = await db.syncedNotes.get(noteId);
-
-        if (!note) {
-          throw new Error("Note not found in synced storage.");
-        }
-
-        // 2. Prepare the note for local storage
-        const localNote: Note = {
-          ...note,
-          isSynced: false,
-          isPublic: false, // Usually, if it's local, it shouldn't be public
-          updatedAt: new Date(),
-        };
-
-        // 3. Add to localNotes and Delete from syncedNotes
-        // This ensures the note is never "lost" during the swap
-        await db.localNotes.add(localNote);
-        await db.syncedNotes.delete(noteId);
-
-        return localNote;
-      },
-    );
+    try {
+      await powersync.execute("UPDATE notes SET is_synced = 0 WHERE id = ?", [
+        noteId,
+      ]);
+      toast.success("Note moved to local", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error("Oops! Error transitioning note", {
+        position: "top-right",
+      });
+    }
   }
 
   return {
