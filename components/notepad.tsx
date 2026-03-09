@@ -55,8 +55,6 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
           String.fromCharCode.apply(null, stateVector as any),
         );
 
-        console.log("Saving state to PowerSync", base64State);
-
         powerSync.execute("UPDATE notes SET content = ? WHERE id = ?", [
           base64State,
           note.id,
@@ -112,7 +110,7 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
         activeDocRef.current = null;
       }
     };
-  }, [note, powerSync]); // Keep dependencies tight
+  }, [powerSync]); // Keep dependencies tight
 
   return (
     <div className="w-full h-full relative">

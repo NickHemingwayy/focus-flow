@@ -1,10 +1,7 @@
 "use client";
-import { db } from "@/lib/db";
-import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
-import { Button } from "./ui/button";
 import { useNote } from "@/hooks/use-note";
+import { Plus } from "lucide-react";
+import { Button } from "./ui/button";
 
 export default function CreateNoteBtn() {
   const { createNote } = useNote();

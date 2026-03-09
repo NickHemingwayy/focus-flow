@@ -1,4 +1,3 @@
-import { db, Note } from "@/lib/db";
 import { usePowerSync } from "@powersync/react";
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
@@ -38,10 +37,10 @@ const useNote = () => {
 
   const renameNote = async (id: string, name: string) => {
     try {
-      await powersync.execute("UPDATE notes SET name = ? WHERE id = ?", [
-        name,
-        id,
-      ]);
+      await powersync.execute(
+        "UPDATE notes SET name = ?, updated_at = ? WHERE id = ?",
+        [name, dayjs().format(), id],
+      );
     } catch (error) {
       console.log(error);
       toast.error("Oops! Error renaming note", {
@@ -49,6 +48,24 @@ const useNote = () => {
       });
     }
   };
+  /**
+   * Atomically moves a note from localNotes to syncedNotes
+   * @param noteId The ID of the note to transition
+   */
+  async function pinNote(noteId: string) {
+    try {
+      await powersync.execute("UPDATE notes SET is_pinned = 1 WHERE id = ?", [
+        noteId,
+      ]);
+      toast.success("Note pinnned", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error("Oops! Error pinning note", {
+        position: "top-right",
+      });
+    }
+  }
 
   /**
    * Atomically moves a note from localNotes to syncedNotes
@@ -88,12 +105,54 @@ const useNote = () => {
     }
   }
 
+  /**
+   * Atomically moves a note from localNotes to syncedNotes
+   * @param noteId The ID of the note to transition
+   */
+  async function transitionNoteToPublic(noteId: string) {
+    try {
+      await powersync.execute(
+        "UPDATE notes SET is_public = 1, is_synced = 1 WHERE id = ?",
+        [noteId],
+      );
+      toast.success("Note is now publicly accessible", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error("Oops! Error making note public", {
+        position: "top-right",
+      });
+    }
+  }
+
+  /**
+   * Atomically moves a note from localNotes to syncedNotes
+   * @param noteId The ID of the note to transition
+   */
+  async function transitionNoteToPrivate(noteId: string) {
+    try {
+      await powersync.execute("UPDATE notes SET is_public = 0 WHERE id = ?", [
+        noteId,
+      ]);
+      toast.success("Note is no longer publicly accessible", {
+        position: "top-right",
+      });
+    } catch (error) {
+      toast.error("Oops! Error making note private", {
+        position: "top-right",
+      });
+    }
+  }
+
   return {
     createNote,
     deleteNote,
     renameNote,
+    pinNote,
     transitionNoteToCloud,
     transitionNoteToLocal,
+    transitionNoteToPublic,
+    transitionNoteToPrivate,
   };
 };
 

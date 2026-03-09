@@ -1,55 +1,52 @@
 "use client";
 import NotePad from "@/components/notepad";
 import { useNote } from "@/hooks/use-note";
-import { db } from "@/lib/db";
 import { NoteRecord } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
 import { usePowerSync, useQuery } from "@powersync/react";
-import { useLiveQuery } from "dexie-react-hooks";
+import debounce from "lodash.debounce";
 import { useParams, useRouter } from "next/navigation";
-import { use, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 
 export default function Note() {
   const router = useRouter();
   const params = useParams<{ slug: string }>();
-  const powersync = usePowerSync();
 
-  // const { data: notes } = useQuery("SELECT * FROM notes");
-
-  const slug = params?.slug;
+  const slug = params?.slug as string;
 
   const titleRef = useRef<HTMLHeadingElement>(null);
 
   const { renameNote } = useNote();
+
+  const [isPending, startTransition] = useTransition();
   const [activeNote, setActiveNote] = useState<NoteRecord | null>(null);
+  const { data: notes, isLoading } = useQuery(
+    "SELECT * FROM notes where id = ?",
+    [slug],
+  );
+
   useEffect(() => {
-    powersync.get("SELECT * from notes where id = ?", [slug]).then((note) => {
-      console.log(note);
-      if (note) {
-        setActiveNote(note as NoteRecord);
-      }
-    });
-  }, []);
+    if (notes && notes.length > 0) {
+      startTransition(() => {
+        setActiveNote(notes[0] as NoteRecord);
+      });
+    }
+  }, [notes]);
 
-  // console.log(activeNote);
+  useEffect(() => {
+    if (!isLoading && !notes.length) {
+      router.push("/"); // Redirect to the homepage
+      toast.error("Note not found", {
+        position: "top-right",
+      });
+    }
+  }, [notes, isLoading]);
 
-  // const activeNote = useLiveQuery(async () => {
-  //   const localNote = await db.localNotes.get(slug);
-  //   const syncedNote = await db.syncedNotes.get(slug);
-  //   const note = localNote ?? syncedNote;
-  //   return note ?? null;
-  // }, [slug]);
-
-  // useEffect(() => {
-  //   if (activeNote === null) {
-  //     router.push("/"); // Redirect to the homepage
-  //   }
-  // }, [activeNote, router]);
-
-  const handleRenameNote = (name: string) => {
+  const handleRenameNote = debounce((name: string) => {
     if (!activeNote) return;
     renameNote(slug, name);
-  };
+  }, 300);
 
   useEffect(() => {
     if (titleRef.current && activeNote) {
@@ -58,7 +55,7 @@ export default function Note() {
         titleRef.current.textContent = activeNote.name || "";
       }
     }
-  }, [activeNote?.id]);
+  }, [activeNote?.id, activeNote?.name]);
 
   if (!activeNote) return <></>;
 
@@ -82,6 +79,7 @@ export default function Note() {
             if (text === "") {
               e.currentTarget.innerHTML = "";
             }
+            debounce;
             handleRenameNote(text);
           }}
         />
