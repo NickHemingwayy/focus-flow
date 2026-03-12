@@ -1,12 +1,14 @@
 "use client";
 import NotePad from "@/components/notepad";
+
 import { useNote } from "@/hooks/use-note";
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteRecord, NoteType } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
-import { usePowerSync, useQuery } from "@powersync/react";
+import { useQuery } from "@powersync/react";
 import debounce from "lodash.debounce";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { Fragment, useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 
 export default function Note() {
@@ -17,23 +19,25 @@ export default function Note() {
 
   const titleRef = useRef<HTMLHeadingElement>(null);
 
-  const { syncedIds, renameNote } = useNote();
+  const { renameNote } = useNote();
 
   const [isPending, startTransition] = useTransition();
-  const [activeNote, setActiveNote] = useState<NoteRecord | null>(null);
+  const [activeNote, setActiveNote] = useState<NoteType | null>(null);
+
   // const { data: notes, isLoading } = useQuery(
-  //   "SELECT * FROM localNotes where id = ?",
+  //   "SELECT * FROM (SELECT * FROM localNotes UNION ALL SELECT * FROM syncedNotes) WHERE id = ?",
   //   [slug],
   // );
 
-  const { data: notes, isLoading } = useQuery(
-    "SELECT * FROM (SELECT * FROM localNotes UNION ALL SELECT * FROM syncedNotes) WHERE id = ?",
+  const { data: notes, isLoading } = useQuery<NoteType>(
+    `SELECT * FROM (SELECT *, 0 as is_synced FROM localNotes UNION ALL SELECT *, 1 as is_synced FROM syncedNotes) WHERE id = ?`,
     [slug],
   );
+
   useEffect(() => {
     if (notes && notes.length > 0) {
       startTransition(() => {
-        setActiveNote(notes[0] as NoteRecord);
+        setActiveNote(notes[0] as NoteType);
       });
     }
   }, [notes]);
@@ -50,11 +54,12 @@ export default function Note() {
   const debouncedRename = useRef(
     debounce(
       (
-        renameFn: (id: string, name: string) => void,
+        renameFn: (id: string, name: string, isSynced: number) => void,
         id: string,
         name: string,
+        isSynced: number,
       ) => {
-        renameFn(id, name);
+        renameFn(id, name, isSynced);
       },
       300,
     ),
@@ -65,6 +70,11 @@ export default function Note() {
       debouncedRename.cancel();
     };
   }, [debouncedRename]);
+
+  // useEffect(() => {
+  //   if (!activeNote) return []
+  //   powersync.getAll("SELECT * from lists").then(setLists);
+  // }, [activeNote]);
 
   useEffect(() => {
     if (
@@ -98,7 +108,7 @@ export default function Note() {
           )}
           onInput={(e) => {
             const text = e.currentTarget.textContent || "";
-            debouncedRename(renameNote, slug, text);
+            debouncedRename(renameNote, slug, text, activeNote.is_synced);
           }}
         />
       </div>

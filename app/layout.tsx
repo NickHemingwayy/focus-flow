@@ -7,6 +7,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import SystemProvider from "@/components/providers/system-provider";
+import Header from "@/components/header";
 
 const interSans = Inter({
   variable: "--font-inter-sans",
@@ -41,10 +42,8 @@ export default function RootLayout({
             <SidebarProvider>
               <AppSidebar />
               <main className="flex-1 min-w-0 relative">
-                <div className="w-full p-2 bg-background absolute top-0 left-0 right-0 z-10">
-                  <SidebarTrigger className="cursor-pointer" />
-                </div>
-                <div className="h-screen font-sans dark:bg-zinc-900 flex-1 px-20 pt-24 overflow-y-auto">
+                <Header />
+                <div className="h-screen font-sans dark:bg-zinc-900 flex-1 px-20 pt-12 overflow-y-auto">
                   {children}
                 </div>
               </main>

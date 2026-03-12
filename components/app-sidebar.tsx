@@ -18,7 +18,7 @@ export function AppSidebar() {
         <span className="font-bold ms-3">Wripp</span>
         <CreateNoteBtn />
       </SidebarHeader>
-      <SidebarContent className="px-2 flex flex-col gap-2">
+      <SidebarContent className="px-2 flex flex-col gap-0">
         <Button variant="ghost" className="justify-start text-muted-foreground">
           <Search /> Search
         </Button>

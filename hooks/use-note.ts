@@ -1,4 +1,4 @@
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteRecord, NoteType } from "@/lib/powersync/app-schema";
 import { usePowerSync, useQuery } from "@powersync/react";
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
@@ -9,13 +9,8 @@ const useNote = () => {
   const router = useRouter();
   const powersync = usePowerSync();
 
-  const { data: syncedIds } = useQuery(
-    "SELECT id FROM syncedNotes ORDER BY updated_at DESC",
-  );
-
-  const getTableName = (noteId: string) => {
-    const isSynced = syncedIds.some((o) => o.id === noteId);
-    return isSynced ? "syncedNotes" : "localNotes";
+  const getTableName = (isSynced: number) => {
+    return isSynced === 1 ? "syncedNotes" : "localNotes";
   };
 
   const createNote = async () => {
@@ -38,17 +33,17 @@ const useNote = () => {
     }
   };
 
-  const deleteNote = async (id: string) => {
-    const table = getTableName(id);
+  const deleteNote = async (id: string, isSynced: number) => {
+    const table = getTableName(isSynced);
     await powersync.execute(`DELETE FROM ${table} WHERE id = ?`, [id]);
     toast.success("Note deleted successfully", {
       position: "top-right",
     });
   };
 
-  const renameNote = async (id: string, name: string) => {
+  const renameNote = async (id: string, name: string, isSynced: number) => {
     try {
-      const table = getTableName(id);
+      const table = getTableName(isSynced);
       await powersync.execute(
         `UPDATE ${table} SET name = ?, updated_at = ? WHERE id = ?`,
         [name, dayjs().format(), id],
@@ -60,9 +55,28 @@ const useNote = () => {
       });
     }
   };
-  const moveNote = async (id: string, parentId: string) => {
+
+  const updateNoteContent = async (
+    id: string,
+    content: string,
+    isSynced: number,
+  ) => {
     try {
-      const table = getTableName(id);
+      const table = getTableName(isSynced);
+      await powersync.execute(
+        `UPDATE ${table} SET content = ?, updated_at = ? WHERE id = ?`,
+        [content, dayjs().format(), id],
+      );
+    } catch (error) {
+      console.log(error);
+      toast.error("Oops! Error updating note content", {
+        position: "top-right",
+      });
+    }
+  };
+  const moveNote = async (id: string, parentId: string, isSynced: number) => {
+    try {
+      const table = getTableName(isSynced);
       await powersync.execute(
         `UPDATE ${table} SET parent_id = ? WHERE id = ?`,
         [parentId, id],
@@ -80,9 +94,9 @@ const useNote = () => {
   /**
    * @param noteId The ID of the note to transition
    */
-  async function pinNote(noteId: string) {
+  async function pinNote(noteId: string, isSynced: number) {
     try {
-      const table = getTableName(noteId);
+      const table = getTableName(isSynced);
       await powersync.execute(
         `UPDATE ${table} SET is_pinned = 1 WHERE id = ?`,
         [noteId],
@@ -99,9 +113,9 @@ const useNote = () => {
   /**
    * @param noteId The ID of the note to transition
    */
-  async function unPinNote(noteId: string) {
+  async function unPinNote(noteId: string, isSynced: number) {
     try {
-      const table = getTableName(noteId);
+      const table = getTableName(isSynced);
       await powersync.execute(
         `UPDATE ${table} SET is_pinned = 0 WHERE id = ?`,
         [noteId],
@@ -205,9 +219,9 @@ const useNote = () => {
    * Atomically moves a note from localNotes to syncedNotes
    * @param noteId The ID of the note to transition
    */
-  async function transitionNoteToPublic(noteId: string) {
+  async function transitionNoteToPublic(noteId: string, isSynced: number) {
     try {
-      const table = getTableName(noteId);
+      const table = getTableName(isSynced);
       if (table !== "syncedNotes") {
         await transitionNoteToCloud(noteId);
       }
@@ -246,9 +260,9 @@ const useNote = () => {
   }
 
   return {
-    syncedIds,
     createNote,
     deleteNote,
+    updateNoteContent,
     renameNote,
     pinNote,
     unPinNote,

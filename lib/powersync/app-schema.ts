@@ -37,3 +37,6 @@ export type Database = (typeof AppSchema)["types"];
 export type NoteRecord = {
   [P in keyof Database["localNotes"]]: NonNullable<Database["localNotes"][P]>;
 };
+export interface NoteType extends NoteRecord {
+  is_synced: number;
+}

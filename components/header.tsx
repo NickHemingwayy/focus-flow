@@ -1,0 +1,71 @@
+"use client";
+import { useParams } from "next/navigation";
+import { SidebarTrigger } from "./ui/sidebar";
+import { useQuery } from "@powersync/react";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Fragment } from "react/jsx-runtime";
+import Link from "next/link";
+
+interface Breadcrumb {
+  id: string;
+  name: string;
+}
+const Header = () => {
+  const params = useParams<{ slug: string }>();
+
+  const slug = params?.slug as string;
+
+  const { data: breadcrumbs } = useQuery<Breadcrumb>(
+    `
+    WITH RECURSIVE
+      all_notes AS (
+        SELECT id, name, parent_id FROM localNotes
+        UNION ALL
+        SELECT id, name, parent_id FROM syncedNotes
+      ),
+      ancestors(id, name, parent_id, level) AS (
+        SELECT id, name, parent_id, 0 FROM all_notes WHERE id = ?
+        UNION ALL
+        SELECT t.id, t.name, t.parent_id, a.level + 1
+        FROM all_notes t JOIN ancestors a ON t.id = a.parent_id
+      )
+    SELECT id, name FROM ancestors ORDER BY level DESC;
+  `,
+    [slug],
+  );
+
+  return (
+    <div className="w-full p-2 bg-background absolute top-0 left-0 right-0 z-10 flex items-center gap-8">
+      <SidebarTrigger className="cursor-pointer" />
+      {breadcrumbs?.length > 0 && (
+        <Breadcrumb>
+          <BreadcrumbList>
+            {breadcrumbs?.map((breadcrumb, index) => (
+              <Fragment key={breadcrumb.id}>
+                <BreadcrumbItem>
+                  {breadcrumb.id === slug ? (
+                    <BreadcrumbPage>{breadcrumb.name}</BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink asChild>
+                      <Link href={`/${breadcrumb.id}`}>{breadcrumb.name}</Link>
+                    </BreadcrumbLink>
+                  )}
+                </BreadcrumbItem>
+
+                {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+              </Fragment>
+            ))}
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
+    </div>
+  );
+};
+export default Header;

@@ -4,20 +4,22 @@ import { FC, useEffect, useRef, useState } from "react";
 import { Crepe } from "@milkdown/crepe";
 import { collab, collabServiceCtx } from "@milkdown/plugin-collab";
 import * as Y from "yjs";
-import { usePowerSync, useQuery } from "@powersync/react"; // Adjust based on your setup
+import { usePowerSync } from "@powersync/react"; // Adjust based on your setup
 import "@milkdown/crepe/theme/common/style.css";
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteRecord, NoteType } from "@/lib/powersync/app-schema";
 import debounce from "lodash.debounce";
+import { useNote } from "@/hooks/use-note";
 
-const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
+const NotePad: FC<{ note: NoteType }> = ({ note }) => {
   const divRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
 
   const activeDocRef = useRef<Y.Doc | null>(null);
   const isInitializedRef = useRef(false);
-
   // 1. PowerSync instances
   const powerSync = usePowerSync();
+
+  const { updateNoteContent } = useNote();
 
   useEffect(() => {
     // Only initialize once we have the container and the initial note data
@@ -55,10 +57,7 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
           String.fromCharCode.apply(null, stateVector as any),
         );
 
-        powerSync.execute("UPDATE localNotes SET content = ? WHERE id = ?", [
-          base64State,
-          note.id,
-        ]);
+        updateNoteContent(note.id, base64State, note.is_synced);
       }, 300);
 
       // 4. Listen for local editor changes and save them back to PowerSync
@@ -74,6 +73,20 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
       crepeInstance = new Crepe({
         root: divRef.current,
         defaultValue: "",
+        featureConfigs: {
+          [Crepe.Feature.ImageBlock]: {
+            // 1. Returning null/empty string hides the upload buttons in the UI
+            inlineUploadButton: "",
+            blockUploadButton: "",
+
+            // 2. Set onUpload to undefined to prevent the internal trigger
+            onUpload: undefined,
+
+            // Optional: customize the placeholder to make it clear for users
+            inlineUploadPlaceholderText: "Enter image URL...",
+            blockUploadPlaceholderText: "Paste an image link here...",
+          },
+        },
       });
 
       crepeInstance.editor.use(collab);
@@ -83,6 +96,20 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
         crepeInstance.destroy();
         return;
       }
+
+      // crepeInstance.editor.config((ctx) => {
+      //   // We can intercept the uploader and make it a no-op
+      //   // or disable the HTML file uploader which handles pasted images.
+      //   import("@milkdown/plugin-upload").then(({ uploadConfig }) => {
+      //     ctx.update(uploadConfig.key, (prev) => ({
+      //       ...prev,
+      //       // Returning an empty fragment or null effectively cancels the upload
+      //       uploader: () => Promise.resolve([]),
+      //       // Prevents images copied via "Copy Image" in browser from being uploaded as files
+      //       enableHtmlFileUploader: false,
+      //     }));
+      //   });
+      // });
 
       crepeInstance.editor.action((ctx) => {
         const collabService = ctx.get(collabServiceCtx);

@@ -1,6 +1,6 @@
 "use client";
 import { useNote } from "@/hooks/use-note";
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteRecord, NoteType } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@powersync/react";
 import dayjs from "dayjs";
@@ -32,13 +32,12 @@ import {
 } from "./ui/context-menu";
 import { Input } from "./ui/input";
 import debounce from "lodash.debounce";
-import { NoteType } from "./file-list";
 
 const FileMoveTo = ({
   activeNote,
   handleCloseContextMenu,
 }: {
-  activeNote: NoteRecord;
+  activeNote: NoteType;
   handleCloseContextMenu: () => void;
 }) => {
   const { moveNote } = useNote();
@@ -83,7 +82,7 @@ const FileMoveTo = ({
               className="justify-start text-muted-foreground"
               disabled={note.id == activeNote.parent_id}
               onClick={() => {
-                moveNote(activeNote.id, note.id);
+                moveNote(activeNote.id, note.id, activeNote.is_synced);
                 handleCloseContextMenu();
               }}
             >
@@ -108,7 +107,6 @@ const FileListContextMenu = memo(
     asChild?: boolean;
   }) => {
     const {
-      syncedIds,
       deleteNote,
       renameNote,
       pinNote,
@@ -151,7 +149,7 @@ const FileListContextMenu = memo(
                   {!isPinned && (
                     <ContextMenuItem
                       onClick={() => {
-                        pinNote(note.id);
+                        pinNote(note.id, note.is_synced);
                       }}
                     >
                       <Pin />
@@ -161,7 +159,7 @@ const FileListContextMenu = memo(
                   {isPinned && (
                     <ContextMenuItem
                       onClick={() => {
-                        unPinNote(note.id);
+                        unPinNote(note.id, note.is_synced);
                       }}
                     >
                       <PinOff />
@@ -196,7 +194,9 @@ const FileListContextMenu = memo(
                     <FileSymlink />
                     Move to
                   </ContextMenuItem>
-                  <ContextMenuItem onClick={() => deleteNote(note.id)}>
+                  <ContextMenuItem
+                    onClick={() => deleteNote(note.id, note.is_synced)}
+                  >
                     <Trash />
                     Trash note
                   </ContextMenuItem>
@@ -222,7 +222,9 @@ const FileListContextMenu = memo(
 
                   {!isPublic && (
                     <ContextMenuItem
-                      onClick={() => transitionNoteToPublic(note.id)}
+                      onClick={() =>
+                        transitionNoteToPublic(note.id, note.is_synced)
+                      }
                     >
                       <Globe />
                       Make public
@@ -250,7 +252,7 @@ const FileListContextMenu = memo(
                 autoFocus
                 className="focus-visible:ring-0 w-80"
                 onChange={(e) => {
-                  renameNote(note.id, e.target.value);
+                  renameNote(note.id, e.target.value, note.is_synced);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {

@@ -1,43 +1,14 @@
 "use client";
-import { useNote } from "@/hooks/use-note";
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteType } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@powersync/react";
-import dayjs from "dayjs";
-import {
-  Cloud,
-  CloudCheck,
-  CloudDownload,
-  FileSymlink,
-  FileText,
-  Globe,
-  GlobeX,
-  HardDrive,
-  MoveUpRight,
-  Pin,
-  PinOff,
-  SquarePen,
-  Trash,
-} from "lucide-react";
+import { CloudCheck, Globe, HardDrive } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import React, { memo, useEffect, useState } from "react";
-import { Button } from "./ui/button";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuGroup,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "./ui/context-menu";
-import { Input } from "./ui/input";
-import debounce from "lodash.debounce";
+import { useEffect, useState } from "react";
 import FileListContextMenu from "./file-context-menu";
+import { Button } from "./ui/button";
 
-export interface NoteType extends NoteRecord {
-  is_synced: number;
-}
 const UsersFileList = () => {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
