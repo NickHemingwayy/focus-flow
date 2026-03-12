@@ -10,8 +10,10 @@ export default function Home() {
   const { createNote } = useNote();
 
   const { data: notes, isLoading } = useQuery(
-    "SELECT id FROM notes ORDER BY updated_at DESC LIMIT 1",
+    "SELECT * FROM localNotes UNION ALL SELECT * FROM syncedNotes ORDER BY updated_at DESC",
   );
+
+  console.log(notes);
 
   useEffect(() => {
     if (isLoading) return;

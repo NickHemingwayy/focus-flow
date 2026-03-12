@@ -6,12 +6,16 @@ import { useQuery } from "@powersync/react";
 import dayjs from "dayjs";
 import {
   Cloud,
+  CloudCheck,
   CloudDownload,
+  FileSymlink,
   FileText,
   Globe,
   GlobeX,
+  HardDrive,
   MoveUpRight,
   Pin,
+  PinOff,
   SquarePen,
   Trash,
 } from "lucide-react";
@@ -29,7 +33,11 @@ import {
 } from "./ui/context-menu";
 import { Input } from "./ui/input";
 import debounce from "lodash.debounce";
+import FileListContextMenu from "./file-context-menu";
 
+export interface NoteType extends NoteRecord {
+  is_synced: number;
+}
 const UsersFileList = () => {
   const params = useParams<{ slug: string }>();
   const slug = params?.slug;
@@ -40,18 +48,17 @@ const UsersFileList = () => {
     setActiveId(slug);
   }, [slug]);
 
-  const { data: notes } = useQuery(
-    "SELECT id, name, updated_at, is_pinned, is_synced, is_public FROM notes ORDER BY updated_at DESC",
+  const { data: recentNotes } = useQuery<NoteType>(
+    `SELECT * FROM (SELECT id, name, created_at, updated_at, is_pinned, is_public, parent_id, 0 as is_synced FROM localNotes UNION ALL SELECT id, name, created_at, updated_at, is_pinned, is_public, parent_id, 1 as is_synced FROM syncedNotes) ORDER BY updated_at DESC LIMIT 10`,
   );
 
-  const pinnedNotes = (notes || []).filter((note) => note.is_pinned === 1);
-  const localNotes = (notes || [])
-    .filter((note) => note.is_synced === 0)
-    .slice(0, 5);
-  const syncedNotes = (notes || [])
-    .filter((note) => note.is_synced === 1)
-    .slice(0, 5);
-  const publicNotes = (notes || []).filter((note) => note.is_public === 1);
+  const { data: pinnedNotes } = useQuery<NoteType>(
+    `SELECT * FROM (
+        SELECT id, name, created_at, updated_at, is_pinned, is_public, parent_id, 0 as is_synced FROM localNotes
+        UNION ALL
+        SELECT id, name, created_at, updated_at, is_pinned, is_public, parent_id, 1 as is_synced FROM syncedNotes
+      ) WHERE is_pinned = 1 ORDER BY updated_at DESC`,
+  );
 
   return (
     <div className="flex flex-col">
@@ -60,204 +67,61 @@ const UsersFileList = () => {
       </span>
 
       {pinnedNotes?.map((note) => (
-        <FileListItem
-          note={note}
-          slug={slug}
-          key={`pinned-${note.id}`}
-          activeId={activeId}
-          setActiveId={setActiveId}
-        />
+        <FileListContextMenu note={note} key={`pinned-${note.id}`} asChild>
+          <Button
+            variant={activeId === note.id ? "secondary" : "ghost"}
+            className={cn(
+              "justify-start max-w-full",
+              activeId !== note.id && "text-muted-foreground",
+            )}
+            asChild
+          >
+            <Link href={`/${note.id}`} onClick={() => setActiveId(note.id)}>
+              <NoteIcon note={note} />
+              <span className="truncate inline-block">
+                {note.name || "Untitled"}
+              </span>
+            </Link>
+          </Button>
+        </FileListContextMenu>
       ))}
       <span className="text-muted-foreground ps-3 text-xs block mt-4 font-bold">
-        Local files
+        Recents
       </span>
-      {localNotes?.map((note) => (
-        <FileListItem
-          note={note}
-          slug={slug}
-          key={`local-${note.id}`}
-          activeId={activeId}
-          setActiveId={setActiveId}
-        />
-      ))}
-      <span className="text-muted-foreground ps-3 text-xs block mt-4 font-bold">
-        Synced files
-      </span>
-      {syncedNotes?.map((note) => (
-        <FileListItem
-          note={note}
-          slug={slug}
-          key={`synced-${note.id}`}
-          activeId={activeId}
-          setActiveId={setActiveId}
-        />
-      ))}
-      <span className="text-muted-foreground ps-3 text-xs block mt-4 font-bold">
-        Public files
-      </span>
-      {publicNotes?.map((note) => (
-        <FileListItem
-          note={note}
-          slug={slug}
-          key={`public-${note.id}`}
-          activeId={activeId}
-          setActiveId={setActiveId}
-        />
+      {recentNotes?.map((note) => (
+        <FileListContextMenu note={note} key={`local-${note.id}`} asChild>
+          <Button
+            variant={activeId === note.id ? "secondary" : "ghost"}
+            className={cn(
+              "justify-start max-w-full",
+              activeId !== note.id && "text-muted-foreground",
+            )}
+            asChild
+          >
+            <Link href={`/${note.id}`} onClick={() => setActiveId(note.id)}>
+              <NoteIcon note={note} />
+              <span className="truncate inline-block">
+                {note.name || "Untitled"}
+              </span>
+            </Link>
+          </Button>
+        </FileListContextMenu>
       ))}
     </div>
   );
 };
 
-const FileListItem = memo(
-  ({
-    note,
-    activeId,
-    setActiveId,
-  }: {
-    note: NoteRecord;
-    slug?: string;
-    activeId: string | null;
-    setActiveId: (id: string | null) => void;
-  }) => {
-    const isActive = activeId === note.id;
+const NoteIcon = ({ note }: { note: NoteType }) => {
+  let icon = <HardDrive />;
+  const isPublic = note.is_public;
+  const isSynced = note.is_synced;
 
-    const {
-      deleteNote,
-      renameNote,
-      pinNote,
-      transitionNoteToCloud,
-      transitionNoteToLocal,
-      transitionNoteToPublic,
-      transitionNoteToPrivate,
-    } = useNote();
-
-    const handleRenameNote = debounce((name: string) => {
-      renameNote(note.id, name);
-    }, 300);
-
-    const [editingNoteName, setEditingNoteName] = useState(false);
-
-    const isPublic = note.is_public === 1;
-    const isSynced = note.is_synced === 1;
-
-    return (
-      <React.Fragment>
-        <ContextMenu
-          onOpenChange={(oc) => {
-            // Prevents flash of context menu when closing
-            setTimeout(() => {
-              if (oc == false) {
-                setEditingNoteName(false);
-              }
-            }, 100);
-          }}
-        >
-          <ContextMenuTrigger asChild>
-            <Button
-              variant={isActive ? "secondary" : "ghost"}
-              className={cn(
-                "justify-start max-w-full",
-                !isActive && "text-muted-foreground",
-              )}
-              asChild
-            >
-              <Link href={`/${note.id}`} onClick={() => setActiveId(note.id)}>
-                <FileText />
-                <span className="truncate inline-block">
-                  {note.name || "Untitled"}
-                </span>
-              </Link>
-            </Button>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            {!editingNoteName ? (
-              <>
-                <ContextMenuGroup>
-                  <ContextMenuItem
-                    onClick={() => {
-                      pinNote(note.id);
-                    }}
-                  >
-                    <Pin />
-                    Pin to favourites
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setEditingNoteName(true);
-                    }}
-                  >
-                    <SquarePen />
-                    Rename
-                  </ContextMenuItem>
-
-                  <ContextMenuItem asChild>
-                    <Link href={`/${note.id}`} target="_blank">
-                      <MoveUpRight />
-                      Open in new tab
-                    </Link>
-                  </ContextMenuItem>
-                  <ContextMenuItem onClick={() => deleteNote(note.id)}>
-                    <Trash />
-                    Trash
-                  </ContextMenuItem>
-                </ContextMenuGroup>
-                <ContextMenuSeparator />
-                <ContextMenuGroup>
-                  {!isSynced && (
-                    <ContextMenuItem
-                      onClick={() => transitionNoteToCloud(note.id)}
-                    >
-                      <Cloud />
-                      Add to sync store
-                    </ContextMenuItem>
-                  )}
-                  {isSynced && (
-                    <ContextMenuItem
-                      onClick={() => transitionNoteToLocal(note.id)}
-                    >
-                      <CloudDownload />
-                      Remove from sync store
-                    </ContextMenuItem>
-                  )}
-
-                  {!isPublic && (
-                    <ContextMenuItem
-                      onClick={() => transitionNoteToPublic(note.id)}
-                    >
-                      <Globe />
-                      Make public
-                    </ContextMenuItem>
-                  )}
-                  {isPublic && (
-                    <ContextMenuItem
-                      onClick={() => transitionNoteToPrivate(note.id)}
-                    >
-                      <GlobeX />
-                      Unpublish
-                    </ContextMenuItem>
-                  )}
-                </ContextMenuGroup>
-                <ContextMenuSeparator />
-                <span className="text-xs text-muted-foreground px-2 pb-1 block">
-                  Last edited{" "}
-                  {dayjs(note.updated_at).format("MMM D, YYYY, h:mm A")}
-                </span>
-              </>
-            ) : (
-              <Input
-                defaultValue={note.name}
-                autoFocus
-                onChange={(e) => {
-                  handleRenameNote(e.target.value);
-                }}
-              />
-            )}
-          </ContextMenuContent>
-        </ContextMenu>
-      </React.Fragment>
-    );
-  },
-);
+  if (isPublic) {
+    icon = <Globe className="text-emerald-500 dark:text-emerald-300" />;
+  } else if (isSynced) {
+    icon = <CloudCheck className="text-sky-500 dark:text-sky-300 " />;
+  }
+  return icon;
+};
 
 export default UsersFileList;

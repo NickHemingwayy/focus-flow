@@ -17,15 +17,19 @@ export default function Note() {
 
   const titleRef = useRef<HTMLHeadingElement>(null);
 
-  const { renameNote } = useNote();
+  const { syncedIds, renameNote } = useNote();
 
   const [isPending, startTransition] = useTransition();
   const [activeNote, setActiveNote] = useState<NoteRecord | null>(null);
+  // const { data: notes, isLoading } = useQuery(
+  //   "SELECT * FROM localNotes where id = ?",
+  //   [slug],
+  // );
+
   const { data: notes, isLoading } = useQuery(
-    "SELECT * FROM notes where id = ?",
+    "SELECT * FROM (SELECT * FROM localNotes UNION ALL SELECT * FROM syncedNotes) WHERE id = ?",
     [slug],
   );
-
   useEffect(() => {
     if (notes && notes.length > 0) {
       startTransition(() => {
@@ -43,13 +47,31 @@ export default function Note() {
     }
   }, [notes, isLoading]);
 
-  const handleRenameNote = debounce((name: string) => {
-    if (!activeNote) return;
-    renameNote(slug, name);
-  }, 300);
+  const debouncedRename = useRef(
+    debounce(
+      (
+        renameFn: (id: string, name: string) => void,
+        id: string,
+        name: string,
+      ) => {
+        renameFn(id, name);
+      },
+      300,
+    ),
+  ).current;
 
   useEffect(() => {
-    if (titleRef.current && activeNote) {
+    return () => {
+      debouncedRename.cancel();
+    };
+  }, [debouncedRename]);
+
+  useEffect(() => {
+    if (
+      titleRef.current &&
+      activeNote &&
+      document.activeElement !== titleRef.current
+    ) {
       // Only update if the text is actually different to avoid cursor jumps
       if (titleRef.current.textContent !== activeNote.name) {
         titleRef.current.textContent = activeNote.name || "";
@@ -60,8 +82,8 @@ export default function Note() {
   if (!activeNote) return <></>;
 
   return (
-    <div className="h-screen font-sans dark:bg-zinc-900 flex-1 max-w-[1012px] mx-auto">
-      <div className="milkdown pt-20 relative">
+    <>
+      <div className="milkdown relative">
         <span></span>
         <h1
           ref={titleRef}
@@ -69,22 +91,18 @@ export default function Note() {
           suppressContentEditableWarning
           data-placeholder="New note"
           className={cn(
-            "ProseMirror text-5xl font-bold pb-3! outline-hidden",
+            "ProseMirror text-5xl font-bold pb-0! outline-hidden",
             "empty:before:content-[attr(data-placeholder)]",
             "empty:before:text-muted-foreground/50",
             "empty:before:pointer-events-none",
           )}
           onInput={(e) => {
             const text = e.currentTarget.textContent || "";
-            if (text === "") {
-              e.currentTarget.innerHTML = "";
-            }
-            debounce;
-            handleRenameNote(text);
+            debouncedRename(renameNote, slug, text);
           }}
         />
       </div>
       {activeNote && <NotePad key={activeNote?.id} note={activeNote} />}
-    </div>
+    </>
   );
 }

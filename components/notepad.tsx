@@ -55,7 +55,7 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
           String.fromCharCode.apply(null, stateVector as any),
         );
 
-        powerSync.execute("UPDATE notes SET content = ? WHERE id = ?", [
+        powerSync.execute("UPDATE localNotes SET content = ? WHERE id = ?", [
           base64State,
           note.id,
         ]);
@@ -113,10 +113,10 @@ const NotePad: FC<{ note: NoteRecord }> = ({ note }) => {
   }, [powerSync]); // Keep dependencies tight
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full relative">
       <div
         ref={divRef}
-        className={`w-full h-full transition-opacity duration-300 ${
+        className={`w-full transition-opacity duration-300 ${
           isReady ? "opacity-100" : "opacity-0"
         }`}
       />
