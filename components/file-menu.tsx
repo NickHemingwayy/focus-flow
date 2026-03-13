@@ -1,5 +1,5 @@
 "use client";
-import { CreateNoteInput, useNote } from "@/hooks/use-note";
+import { useNote } from "@/hooks/use-note";
 import { NoteType } from "@/lib/powersync/app-schema";
 import { usePowerSync, useQuery } from "@powersync/react";
 import dayjs from "dayjs";
@@ -14,6 +14,7 @@ import {
   MoveUpRight,
   Pin,
   PinOff,
+  Plus,
   SquarePen,
   Trash,
 } from "lucide-react";
@@ -173,7 +174,7 @@ const FileMenu = memo(
       document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     };
 
-    const handleCreateNote = async () => {
+    const handleDuplicateNote = async () => {
       const table = getTableName(note.is_synced);
       const contentRes = (await powersync.get(
         `SELECT content from ${table} WHERE id = ?`,
@@ -186,6 +187,11 @@ const FileMenu = memo(
         is_public: note.is_public,
         is_pinned: note.is_pinned,
         content: contentRes?.content || "",
+      });
+    };
+    const handleCreateChildNote = () => {
+      createNote({
+        parent_id: note.id,
       });
     };
 
@@ -235,8 +241,7 @@ const FileMenu = memo(
                     <SquarePen />
                     Rename
                   </MenuItem>
-
-                  <MenuItem onClick={handleCreateNote}>
+                  <MenuItem onClick={handleDuplicateNote}>
                     <Copy />
                     Duplicate
                   </MenuItem>
@@ -247,7 +252,6 @@ const FileMenu = memo(
                       Open in new tab
                     </Link>
                   </MenuItem>
-
                   <MenuItem
                     onClick={(e) => {
                       e.preventDefault();
@@ -256,6 +260,11 @@ const FileMenu = memo(
                   >
                     <FileSymlink />
                     Move to
+                  </MenuItem>
+
+                  <MenuItem onClick={handleCreateChildNote}>
+                    <Plus />
+                    Create child note
                   </MenuItem>
 
                   <MenuItem onClick={() => deleteNote(note.id, note.is_synced)}>

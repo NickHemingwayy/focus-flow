@@ -83,7 +83,7 @@ const Explorer = () => {
         <h1 className="text-5xl font-bold">Explorer</h1>
         <Button
           variant={"accent"}
-          onClick={createNote}
+          onClick={() => createNote()}
           className="cursor-pointer"
         >
           New note

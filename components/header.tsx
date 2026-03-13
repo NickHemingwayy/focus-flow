@@ -62,11 +62,13 @@ const Header = () => {
                 <Fragment key={breadcrumb.id}>
                   <BreadcrumbItem>
                     {breadcrumb.id === slug ? (
-                      <BreadcrumbPage>{breadcrumb.name}</BreadcrumbPage>
+                      <BreadcrumbPage>
+                        {breadcrumb.name || "Untitled"}
+                      </BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
                         <Link href={`/${breadcrumb.id}`}>
-                          {breadcrumb.name}
+                          {breadcrumb.name || "Untitled"}
                         </Link>
                       </BreadcrumbLink>
                     )}
