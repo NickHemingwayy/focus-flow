@@ -1,18 +1,15 @@
 "use client";
 
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteType } from "@/lib/powersync/app-schema";
 import { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
-import { Check, Cloud, Globe, Pin } from "lucide-react";
+import { Check } from "lucide-react";
+import { NoteTypeWithChildren } from "./page";
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
 
-interface NoteQueryResult extends NoteRecord {
-  is_synced: number;
-}
-
-export const columns: ColumnDef<NoteQueryResult>[] = [
+export const columns: ColumnDef<NoteTypeWithChildren>[] = [
   {
     accessorKey: "name",
     header: "Note name",

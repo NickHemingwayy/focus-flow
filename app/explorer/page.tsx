@@ -9,9 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Cloud, Globe, Pin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { NoteRecord } from "@/lib/powersync/app-schema";
+import { NoteRecord, NoteType } from "@/lib/powersync/app-schema";
 import { DataTable } from "./expanding-data-table";
 
+export interface NoteTypeWithChildren extends NoteType {
+  children: NoteTypeWithChildren[];
+}
 const Explorer = () => {
   const { createNote } = useNote();
   const router = useRouter();
@@ -39,7 +42,7 @@ const Explorer = () => {
    * @param {Array} notes - The data array from your useQuery.
    * @returns {Array} The nested tree of notes.
    */
-  const buildNoteTree = (notes: NoteRecord[]) => {
+  const buildNoteTree = (notes: NoteRecord[]): NoteTypeWithChildren[] => {
     if (!notes) return [];
 
     const map = new Map();

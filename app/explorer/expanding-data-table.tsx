@@ -18,7 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChevronDown, ChevronRight } from "lucide-react"; // Icons for the tree
-import FileListContextMenu from "@/components/file-context-menu";
+import FileMenu from "@/components/file-menu";
 
 // Update interface to support generic nested data
 interface DataTableProps<TData, TValue> {
@@ -69,7 +69,8 @@ export function DataTable<TData, TValue>({
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
-              <FileListContextMenu
+              <FileMenu
+                menuType="context"
                 note={row.original}
                 key={`table-row-item-${row.original.id}`}
                 asChild
@@ -123,7 +124,7 @@ export function DataTable<TData, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
-              </FileListContextMenu>
+              </FileMenu>
             ))
           ) : (
             <TableRow>

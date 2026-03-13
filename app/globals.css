@@ -175,3 +175,94 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* TIPTAP */
+
+@layer components {
+  /* ── Base ─────────────────────────────────────────────────────────────── */
+  .tiptap-editor {
+    caret-color: currentColor;
+  }
+
+  /* ── Headings ─────────────────────────────────────────────────────────── */
+  .tiptap-editor h1 {
+    @apply text-4xl font-bold leading-tight my-[0.67em];
+  }
+  .tiptap-editor h2 {
+    @apply text-3xl font-semibold leading-snug my-3;
+  }
+  .tiptap-editor h3 {
+    @apply text-xl font-semibold leading-snug my-3;
+  }
+
+  /* ── Paragraph ────────────────────────────────────────────────────────── */
+  .tiptap-editor p {
+    @apply my-2 leading-relaxed;
+  }
+
+  /* ── Lists ────────────────────────────────────────────────────────────── */
+  .tiptap-editor ul {
+    @apply list-disc pl-6 my-2;
+  }
+  .tiptap-editor ol {
+    @apply list-decimal pl-6 my-2;
+  }
+  .tiptap-editor li {
+    @apply my-1 leading-relaxed;
+  }
+
+  /* ── Task list ────────────────────────────────────────────────────────── */
+  .tiptap-editor ul[data-type="taskList"] {
+    @apply list-none pl-0 my-2;
+  }
+  .tiptap-editor ul[data-type="taskList"] li {
+    @apply flex items-baseline gap-2 my-1;
+  }
+  .tiptap-editor ul[data-type="taskList"] li > div > p {
+    @apply my-0;
+  }
+  /*
+    The label wraps the checkbox. `top-[0.1em]` nudges it onto the text
+    baseline; flex-shrink-0 stops it collapsing.
+  */
+  .tiptap-editor ul[data-type="taskList"] li > label {
+    @apply flex items-center relative top-[0.1em] flex-shrink-0 leading-none cursor-pointer;
+  }
+  .tiptap-editor ul[data-type="taskList"] li > label input[type="checkbox"] {
+    @apply w-4 h-4 m-0 cursor-pointer accent-primary;
+  }
+  /* Editable content area — must stay focusable so the caret appears */
+  .tiptap-editor ul[data-type="taskList"] li > div {
+    @apply flex-1 min-w-0 outline-none;
+  }
+  .tiptap-editor ul[data-type="taskList"] li[data-checked="true"] > div {
+    @apply line-through opacity-55;
+  }
+
+  /* ── Blockquote ───────────────────────────────────────────────────────── */
+  .tiptap-editor blockquote {
+    @apply border-l-[3px] border-border pl-4 my-3 text-muted-foreground italic;
+  }
+
+  /* ── Code ─────────────────────────────────────────────────────────────── */
+  .tiptap-editor pre {
+    @apply bg-muted rounded-md px-4 py-3 my-3 overflow-x-auto text-sm;
+  }
+  .tiptap-editor code {
+    @apply bg-muted rounded px-1.5 py-0.5 text-sm font-mono;
+  }
+  .tiptap-editor pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* ── Divider ──────────────────────────────────────────────────────────── */
+  .tiptap-editor hr {
+    @apply border-0 border-t border-border my-6;
+  }
+
+  /* ── Placeholder ──────────────────────────────────────────────────────── */
+  .tiptap-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply float-left text-muted-foreground pointer-events-none h-0;
+  }
+}

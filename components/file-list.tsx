@@ -6,8 +6,8 @@ import { CloudCheck, Globe, HardDrive } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import FileListContextMenu from "./file-context-menu";
 import { Button } from "./ui/button";
+import FileMenu from "./file-menu";
 
 const UsersFileList = () => {
   const params = useParams<{ slug: string }>();
@@ -38,7 +38,12 @@ const UsersFileList = () => {
       </span>
 
       {pinnedNotes?.map((note) => (
-        <FileListContextMenu note={note} key={`pinned-${note.id}`} asChild>
+        <FileMenu
+          menuType="context"
+          note={note}
+          key={`pinned-${note.id}`}
+          asChild
+        >
           <Button
             variant={activeId === note.id ? "secondary" : "ghost"}
             className={cn(
@@ -49,18 +54,23 @@ const UsersFileList = () => {
           >
             <Link href={`/${note.id}`} onClick={() => setActiveId(note.id)}>
               <NoteIcon note={note} />
-              <span className="truncate inline-block">
+              <span className="truncate inline-block font-light">
                 {note.name || "Untitled"}
               </span>
             </Link>
           </Button>
-        </FileListContextMenu>
+        </FileMenu>
       ))}
       <span className="text-muted-foreground ps-3 text-xs block mt-4 font-bold">
         Recents
       </span>
       {recentNotes?.map((note) => (
-        <FileListContextMenu note={note} key={`local-${note.id}`} asChild>
+        <FileMenu
+          menuType="context"
+          note={note}
+          key={`local-${note.id}`}
+          asChild
+        >
           <Button
             variant={activeId === note.id ? "secondary" : "ghost"}
             className={cn(
@@ -71,12 +81,12 @@ const UsersFileList = () => {
           >
             <Link href={`/${note.id}`} onClick={() => setActiveId(note.id)}>
               <NoteIcon note={note} />
-              <span className="truncate inline-block">
+              <span className="truncate inline-block font-light">
                 {note.name || "Untitled"}
               </span>
             </Link>
           </Button>
-        </FileListContextMenu>
+        </FileMenu>
       ))}
     </div>
   );

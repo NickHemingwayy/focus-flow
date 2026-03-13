@@ -12,6 +12,10 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Fragment } from "react/jsx-runtime";
 import Link from "next/link";
+import { NoteType } from "@/lib/powersync/app-schema";
+import { Button } from "./ui/button";
+import { Ellipsis } from "lucide-react";
+import FileMenu from "./file-menu";
 
 interface Breadcrumb {
   id: string;
@@ -41,29 +45,50 @@ const Header = () => {
     [slug],
   );
 
-  return (
-    <div className="w-full p-2 bg-background absolute top-0 left-0 right-0 z-10 flex items-center gap-8">
-      <SidebarTrigger className="cursor-pointer" />
-      {breadcrumbs?.length > 0 && (
-        <Breadcrumb>
-          <BreadcrumbList>
-            {breadcrumbs?.map((breadcrumb, index) => (
-              <Fragment key={breadcrumb.id}>
-                <BreadcrumbItem>
-                  {breadcrumb.id === slug ? (
-                    <BreadcrumbPage>{breadcrumb.name}</BreadcrumbPage>
-                  ) : (
-                    <BreadcrumbLink asChild>
-                      <Link href={`/${breadcrumb.id}`}>{breadcrumb.name}</Link>
-                    </BreadcrumbLink>
-                  )}
-                </BreadcrumbItem>
+  const { data: notes, isLoading } = useQuery<NoteType>(
+    `SELECT * FROM (SELECT id, name, created_at, updated_at, is_pinned, is_public, parent_id, 0 as is_synced FROM localNotes UNION ALL SELECT id, name, created_at, updated_at, is_pinned, is_public, parent_id, 1 as is_synced FROM syncedNotes) WHERE id = ?`,
+    [slug],
+  );
+  const note = notes?.length > 0 ? notes[0] : null;
 
-                {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-              </Fragment>
-            ))}
-          </BreadcrumbList>
-        </Breadcrumb>
+  return (
+    <div className="w-full p-2 bg-background absolute top-0 left-0 right-0 z-10 flex items-center justify-between gap-8">
+      <div className="flex gap-4 items-center">
+        <SidebarTrigger className="cursor-pointer" />
+        {breadcrumbs?.length > 0 && (
+          <Breadcrumb>
+            <BreadcrumbList>
+              {breadcrumbs?.map((breadcrumb, index) => (
+                <Fragment key={breadcrumb.id}>
+                  <BreadcrumbItem>
+                    {breadcrumb.id === slug ? (
+                      <BreadcrumbPage>{breadcrumb.name}</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link href={`/${breadcrumb.id}`}>
+                          {breadcrumb.name}
+                        </Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+
+                  {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
+                </Fragment>
+              ))}
+            </BreadcrumbList>
+          </Breadcrumb>
+        )}
+      </div>
+      {note && (
+        <FileMenu note={note} asChild>
+          <Button
+            variant={"ghost"}
+            className={"text-muted-foreground"}
+            size={"icon"}
+          >
+            <Ellipsis />
+          </Button>
+        </FileMenu>
       )}
     </div>
   );

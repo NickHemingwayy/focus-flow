@@ -13,23 +13,55 @@ const useNote = () => {
     return isSynced === 1 ? "syncedNotes" : "localNotes";
   };
 
-  const createNote = async () => {
+  type CreateNoteInput = {
+    name?: string;
+    created_at?: string;
+    updated_at?: string;
+    is_pinned?: number;
+    is_public?: number;
+    is_synced?: number;
+    content?: string;
+    parent_id?: string;
+  };
+
+  const createNote = async (partial: CreateNoteInput = {}) => {
     try {
       const id = uuidv4();
+      const now = dayjs().format();
+
+      const note = {
+        name: "",
+        created_at: now,
+        updated_at: now,
+        is_pinned: 0,
+        is_public: 0,
+        content: "",
+        parent_id: null,
+        ...partial,
+      };
+
+      const table = getTableName(note?.is_synced || 0);
 
       await powersync.execute(
-        "INSERT INTO localNotes (id, name, created_at, updated_at, is_pinned, is_public) VALUES (?, ?, ?, ?, ?, ?)",
-        [id, "", dayjs().format(), dayjs().format(), 0, 0, 0],
+        `INSERT INTO ${table} (id, name, created_at, updated_at, is_pinned, is_public, content, parent_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          note.name,
+          note.created_at,
+          note.updated_at,
+          note.is_pinned,
+          note.is_public,
+          note.content,
+          note.parent_id,
+        ],
       );
+
       router.push(`/${id}`);
-      toast.success("Note created successfully", {
-        position: "top-right",
-      });
+      toast.success("Note created successfully", { position: "top-right" });
     } catch (error) {
       console.log(error);
-      toast.error("Oops! Error creating note", {
-        position: "top-right",
-      });
+      toast.error("Oops! Error creating note", { position: "top-right" });
     }
   };
 
@@ -271,6 +303,8 @@ const useNote = () => {
     transitionNoteToLocal,
     transitionNoteToPublic,
     transitionNoteToPrivate,
+
+    getTableName,
   };
 };
 

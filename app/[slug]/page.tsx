@@ -24,11 +24,6 @@ export default function Note() {
   const [isPending, startTransition] = useTransition();
   const [activeNote, setActiveNote] = useState<NoteType | null>(null);
 
-  // const { data: notes, isLoading } = useQuery(
-  //   "SELECT * FROM (SELECT * FROM localNotes UNION ALL SELECT * FROM syncedNotes) WHERE id = ?",
-  //   [slug],
-  // );
-
   const { data: notes, isLoading } = useQuery<NoteType>(
     `SELECT * FROM (SELECT *, 0 as is_synced FROM localNotes UNION ALL SELECT *, 1 as is_synced FROM syncedNotes) WHERE id = ?`,
     [slug],
@@ -71,11 +66,6 @@ export default function Note() {
     };
   }, [debouncedRename]);
 
-  // useEffect(() => {
-  //   if (!activeNote) return []
-  //   powersync.getAll("SELECT * from lists").then(setLists);
-  // }, [activeNote]);
-
   useEffect(() => {
     if (
       titleRef.current &&
@@ -93,7 +83,7 @@ export default function Note() {
 
   return (
     <>
-      <div className="milkdown relative">
+      <div className="max-w-[800px] mx-auto relative pt-24">
         <span></span>
         <h1
           ref={titleRef}
@@ -111,8 +101,8 @@ export default function Note() {
             debouncedRename(renameNote, slug, text, activeNote.is_synced);
           }}
         />
+        {activeNote && <NotePad key={activeNote?.id} note={activeNote} />}
       </div>
-      {activeNote && <NotePad key={activeNote?.id} note={activeNote} />}
     </>
   );
 }

@@ -19,12 +19,15 @@ export function AppSidebar() {
         <CreateNoteBtn />
       </SidebarHeader>
       <SidebarContent className="px-2 flex flex-col gap-0">
-        <Button variant="ghost" className="justify-start text-muted-foreground">
+        <Button
+          variant="ghost"
+          className="justify-start text-muted-foreground font-light"
+        >
           <Search /> Search
         </Button>
         <Button
           variant="ghost"
-          className="justify-start text-muted-foreground"
+          className="justify-start text-muted-foreground font-light"
           asChild
         >
           <Link href="/explorer">
