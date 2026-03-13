@@ -10,6 +10,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { Button } from "./ui/button";
 import CreateNoteBtn from "./create-note";
 import Link from "next/link";
+import PowerSearch from "./power-search";
 
 export function AppSidebar() {
   return (
@@ -19,12 +20,14 @@ export function AppSidebar() {
         <CreateNoteBtn />
       </SidebarHeader>
       <SidebarContent className="px-2 flex flex-col gap-0">
-        <Button
-          variant="ghost"
-          className="justify-start text-muted-foreground font-light"
-        >
-          <Search /> Search
-        </Button>
+        <PowerSearch>
+          <Button
+            variant="ghost"
+            className="justify-start text-muted-foreground font-light"
+          >
+            <Search /> Search
+          </Button>
+        </PowerSearch>
         <Button
           variant="ghost"
           className="justify-start text-muted-foreground font-light"

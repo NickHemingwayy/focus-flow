@@ -9,6 +9,7 @@ export const notesSchema = v.object({
   is_pinned: v.number(),
   is_public: v.number(),
   content: v.string(),
+  content_text: v.string(),
   parent_id: v.string(),
 });
 
@@ -19,6 +20,7 @@ const notesDef = {
   is_pinned: column.integer,
   is_public: column.integer,
   content: column.text,
+  content_text: column.text,
   parent_id: column.text,
 };
 

@@ -1,14 +1,13 @@
 "use client";
-import NotePad from "@/components/notepad";
+import NotePad from "@/components/notepad/notepad";
 
 import { useNote } from "@/hooks/use-note";
-import { NoteRecord, NoteType } from "@/lib/powersync/app-schema";
+import { NoteType } from "@/lib/powersync/app-schema";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@powersync/react";
 import debounce from "lodash.debounce";
 import { useParams, useRouter } from "next/navigation";
-import { Fragment, useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 export default function Note() {

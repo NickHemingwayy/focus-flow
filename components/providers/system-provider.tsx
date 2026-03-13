@@ -2,6 +2,7 @@
 
 import { AppSchema } from "@/lib/powersync/app-schema";
 import { BackendConnector } from "@/lib/powersync/backend-connector";
+import { configureFts } from "@/lib/powersync/fts_setup";
 import { PowerSyncContext } from "@powersync/react";
 import {
   PowerSyncDatabase,
@@ -9,7 +10,7 @@ import {
   createBaseLogger,
   LogLevel,
 } from "@powersync/web";
-import React, { Suspense } from "react";
+import React, { Suspense, useEffect } from "react";
 
 const logger = createBaseLogger();
 logger.useDefaults();
@@ -39,6 +40,10 @@ export const db = new PowerSyncDatabase({
 // db.connect(connector);
 
 export const SystemProvider = ({ children }: { children: React.ReactNode }) => {
+  useEffect(() => {
+    configureFts();
+  }, []);
+
   return (
     <Suspense>
       <PowerSyncContext.Provider value={db}>
