@@ -2,7 +2,7 @@
 
 import { AppSchema } from "@/lib/powersync/app-schema";
 import { BackendConnector } from "@/lib/powersync/backend-connector";
-import { configureFts } from "@/lib/powersync/fts_setup";
+import { configureFts } from "@/lib/powersync/fts/fts_setup";
 import { PowerSyncContext } from "@powersync/react";
 import {
   PowerSyncDatabase,

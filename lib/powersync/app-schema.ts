@@ -1,27 +1,20 @@
 import { column, Schema, Table } from "@powersync/web";
 import * as v from "valibot";
 
-export const notesSchema = v.object({
-  id: v.string(),
-  name: v.string(),
-  created_at: v.string(),
-  updated_at: v.string(),
-  is_pinned: v.number(),
-  is_public: v.number(),
-  content: v.string(),
-  content_text: v.string(),
-  parent_id: v.string(),
-});
-
 const notesDef = {
   name: column.text,
   created_at: column.text,
   updated_at: column.text,
   is_pinned: column.integer,
   is_public: column.integer,
-  content: column.text,
-  content_text: column.text,
+  content_md: column.text,
   parent_id: column.text,
+};
+
+const noteUpdateDef = {
+  note_id: column.text,
+  created_at: column.text,
+  update_b64: column.text,
 };
 
 const localNotes = new Table(notesDef, {
@@ -29,9 +22,14 @@ const localNotes = new Table(notesDef, {
 });
 const syncedNotes = new Table(notesDef);
 
+const noteUpdates = new Table(noteUpdateDef, {
+  indexes: { by_note: ["note_id"] },
+});
+
 export const AppSchema = new Schema({
   localNotes,
   syncedNotes,
+  noteUpdates,
 });
 
 // For types
@@ -42,3 +40,4 @@ export type NoteRecord = {
 export interface NoteType extends NoteRecord {
   is_synced: number;
 }
+export type NoteUpdates = Database["noteUpdates"];

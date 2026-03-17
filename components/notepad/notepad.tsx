@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, use, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditor,
   EditorContent,
@@ -12,7 +12,8 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
-import { Node, mergeAttributes } from "@tiptap/core";
+import { Editor, Node, mergeAttributes } from "@tiptap/core";
+import { Markdown } from "@tiptap/markdown";
 import * as Y from "yjs";
 import { usePowerSync } from "@powersync/react";
 import { NoteType } from "@/lib/powersync/app-schema";
@@ -21,28 +22,8 @@ import { useNote } from "@/hooks/use-note";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useSlashMenu, SlashMenu } from "./slash-menu";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function encodeState(doc: Y.Doc): string {
-  const stateVector = Y.encodeStateAsUpdate(doc);
-  return btoa(
-    String.fromCharCode.apply(null, stateVector as unknown as number[]),
-  );
-}
-
-function applyPersistedState(doc: Y.Doc, content: string | Uint8Array): void {
-  const binary =
-    typeof content === "string"
-      ? Uint8Array.from(atob(content), (c) => c.charCodeAt(0))
-      : content;
-  Y.applyUpdate(doc, binary);
-}
-
-function getStoredJSON(doc: Y.Doc): Record<string, unknown> | null {
-  const contentMap = doc.getMap<unknown>("content");
-  return (contentMap.get("json") as Record<string, unknown>) ?? null;
-}
+import { PowerSyncYjsProvider } from "@/lib/powersync/yjs/powersync_yjs_provider";
+import Collaboration from "@tiptap/extension-collaboration";
 
 // ─── Image URL input node ─────────────────────────────────────────────────────
 // Renders a URL input when no src is set. Once committed, renders the image
@@ -205,72 +186,55 @@ const ImageUrlExtension = Node.create({
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const NotePad: FC<{ note: NoteType }> = ({ note }) => {
-  const [isReady, setIsReady] = useState(false);
-  const [initialContent, setInitialContent] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
-
-  const ydocRef = useRef<Y.Doc | null>(null);
-  const isInitializedRef = useRef(false);
   const powerSync = usePowerSync();
   const { updateNoteContent } = useNote();
 
   const { slashExtension, setEditor, slashMenuProps } = useSlashMenu();
 
-  const debouncedSave = useRef(
-    debounce((doc: Y.Doc, noteId: string, isSynced: number) => {
-      updateNoteContent(noteId, encodeState(doc), isSynced);
-    }, 300),
-  ).current;
+  const ydoc = useMemo(() => {
+    return new Y.Doc();
+  }, [note?.id]);
 
-  // ── Bootstrap Yjs ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (isInitializedRef.current || !note) return;
-
-    const doc = new Y.Doc();
-    ydocRef.current = doc;
-
-    if (note.content) {
-      try {
-        applyPersistedState(doc, note.content);
-      } catch (e) {
-        console.error("Failed to parse Yjs document state from PowerSync", e);
-      }
-    }
-
-    doc.on("update", () => {
-      debouncedSave(doc, note.id, note.is_synced as number);
-    });
-
-    setInitialContent(getStoredJSON(doc));
-    isInitializedRef.current = true;
-    setIsReady(true);
+    if (note.is_public !== 1) return;
+    const provider = new PowerSyncYjsProvider(ydoc, powerSync, note.id);
 
     return () => {
-      debouncedSave.cancel();
-      doc.destroy();
-      ydocRef.current = null;
-      isInitializedRef.current = false;
-      setIsReady(false);
-      setInitialContent(null);
+      provider.destroy();
     };
-  }, [powerSync]);
+  }, [ydoc, note.id]);
+
+  const handleSaveContent = debounce((editor: Editor) => {
+    const markdown = editor.getMarkdown();
+    updateNoteContent(note.id, markdown, note.is_synced);
+  }, 300);
+
+  const tiptapExtensions = useMemo(() => {
+    const base = [
+      StarterKit,
+      Markdown,
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      ImageUrlExtension,
+      Placeholder.configure({
+        placeholder: "Start writing, or type '/' for commands…",
+      }),
+      slashExtension,
+    ];
+
+    if (note.is_public !== 1) {
+      return base;
+    }
+
+    return [...base, Collaboration.configure({ document: ydoc })];
+  }, [note.is_public]);
 
   // ── TipTap editor ────────────────────────────────────────────────────────
   const editor = useEditor(
     {
-      extensions: [
-        StarterKit,
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        ImageUrlExtension,
-        Placeholder.configure({
-          placeholder: "Start writing, or type '/' for commands…",
-        }),
-        slashExtension,
-      ],
-      content: initialContent ?? "",
+      extensions: tiptapExtensions,
+      content: note.content_md,
+      contentType: "markdown",
       immediatelyRender: false,
       editorProps: {
         attributes: {
@@ -278,25 +242,17 @@ const NotePad: FC<{ note: NoteType }> = ({ note }) => {
         },
       },
       onUpdate: ({ editor }) => {
-        const doc = ydocRef.current;
-        if (!doc) return;
-        doc.getMap<unknown>("content").set("json", editor.getJSON());
+        handleSaveContent(editor);
       },
       onCreate: ({ editor }) => {
         setEditor(editor);
       },
     },
-    [isReady],
+    [tiptapExtensions],
   );
 
-  if (!isReady) return <div className="w-full opacity-0" />;
-
   return (
-    <div
-      className={`w-full relative transition-opacity duration-300 ${
-        isReady ? "opacity-100" : "opacity-0"
-      }`}
-    >
+    <div className={`w-full relative transition-opacity duration-300`}>
       {/* Bubble menu */}
       {editor && (
         <BubbleMenu

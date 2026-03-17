@@ -1,7 +1,8 @@
 import { Table } from "@powersync/web";
-import { ExtractType, generateJsonExtracts } from "./helpers";
-import { AppSchema } from "./app-schema";
+
+import { AppSchema } from "../app-schema";
 import { db } from "@/components/providers/system-provider";
+import { ExtractType, generateJsonExtracts } from "./helpers";
 
 /**
  * Create a Full Text Search table for the given table and columns

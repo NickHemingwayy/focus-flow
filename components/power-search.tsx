@@ -10,7 +10,7 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import debounce from "lodash.debounce";
-import { searchTable } from "@/lib/powersync/fts_helpers";
+import { searchTable } from "@/lib/powersync/fts/fts_helpers";
 
 const PowerSearch = ({ children }: { children: React.ReactNode }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -35,7 +35,7 @@ const PowerSearch = ({ children }: { children: React.ReactNode }) => {
       //   return;
 
       const getResults = async (sq: string) => {
-        const resulst = await debouncedSearch(sq, "localNotes");
+        const resulst = await debouncedSearch(sq);
 
         return [];
       };
