@@ -20,6 +20,7 @@ import { Clock, Search } from "lucide-react";
 import { NoteIcon } from "./file-list";
 import { Separator } from "./ui/separator";
 import { formatRelativeTime } from "@/lib/utils";
+import { useHotkey } from "@tanstack/react-hotkeys";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -158,6 +159,10 @@ const PowerSearch = ({ children }: { children: React.ReactNode }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const hasQuery = searchQuery.trim().length > 0;
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  // Open dialog on CMD+K
+  useHotkey("Mod+K", () => setDialogOpen(true));
 
   const { data: recentNotes } = useQuery<NoteType>(
     `SELECT * FROM (
@@ -191,11 +196,13 @@ const PowerSearch = ({ children }: { children: React.ReactNode }) => {
   return (
     <Dialog
       onOpenChange={(open) => {
+        setDialogOpen(open);
         if (!open) {
           setSearchQuery("");
           setSearchResults([]);
         }
       }}
+      open={dialogOpen}
     >
       <DialogTrigger asChild>{children}</DialogTrigger>
 

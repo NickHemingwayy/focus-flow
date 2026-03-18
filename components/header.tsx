@@ -14,8 +14,9 @@ import { Fragment } from "react/jsx-runtime";
 import Link from "next/link";
 import { NoteType } from "@/lib/powersync/app-schema";
 import { Button } from "./ui/button";
-import { Ellipsis } from "lucide-react";
+import { Clock, Ellipsis, Plus } from "lucide-react";
 import FileMenu from "./file-menu";
+import { formatRelativeTime } from "@/lib/utils";
 
 interface Breadcrumb {
   id: string;
@@ -82,15 +83,28 @@ const Header = () => {
         )}
       </div>
       {note && (
-        <FileMenu note={note} asChild>
-          <Button
+        <div className="flex items-center gap-2">
+          <span className="text-muted-foreground items-center text-xs flex gap-2">
+            <Clock size={10} strokeWidth={2} />
+            {formatRelativeTime(note.updated_at)}
+          </span>
+          {/* <Button
             variant={"ghost"}
-            className={"text-muted-foreground"}
-            size={"icon"}
+            className="cursor-pointer text-muted-foreground"
           >
-            <Ellipsis />
-          </Button>
-        </FileMenu>
+            <Plus />
+            New Note
+          </Button> */}
+          <FileMenu note={note} asChild>
+            <Button
+              variant={"ghost"}
+              className={"text-muted-foreground"}
+              size={"icon"}
+            >
+              <Ellipsis />
+            </Button>
+          </FileMenu>
+        </div>
       )}
     </div>
   );

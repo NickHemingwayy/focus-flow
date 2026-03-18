@@ -14,6 +14,7 @@
     "@journeyapps/wa-sqlite": "^1.5.0",
     "@powersync/react": "^1.9.0",
     "@powersync/web": "^1.35.0",
+    "@tanstack/react-hotkeys": "^0.4.1",
     "@tanstack/react-table": "^8.21.3",
     "@tiptap/extension-collaboration": "^3.20.4",
     "@tiptap/extension-placeholder": "^3.20.1",
