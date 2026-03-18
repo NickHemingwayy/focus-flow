@@ -5,6 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import dayjs from "dayjs";
 import { Check } from "lucide-react";
 import { NoteTypeWithChildren } from "./page";
+import { formatRelativeTime } from "@/lib/utils";
 
 // This type is used to define the shape of our data.
 // You can use a Zod schema here if you want.
@@ -47,14 +48,14 @@ export const columns: ColumnDef<NoteTypeWithChildren>[] = [
     accessorKey: "updated_at",
     header: "Last edited",
     cell: ({ getValue }) => {
-      return dayjs(getValue() as string).format("MMM D, YYYY, h:mm A");
+      return formatRelativeTime(getValue() as string);
     },
   },
   {
     accessorKey: "created_at",
     header: "Created",
     cell: ({ getValue }) => {
-      return dayjs(getValue() as string).format("MMM D, YYYY, h:mm A");
+      return formatRelativeTime(getValue() as string);
     },
   },
 ];

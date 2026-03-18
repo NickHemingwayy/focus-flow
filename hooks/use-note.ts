@@ -42,6 +42,17 @@ const useNote = () => {
 
       const table = getTableName(note?.is_synced || 0);
 
+      console.log(
+        id,
+        note.name,
+        note.created_at,
+        note.updated_at,
+        note.is_pinned,
+        note.is_public,
+        note.content_md,
+        note.parent_id,
+      );
+
       await powersync.execute(
         `INSERT INTO ${table} (id, name, created_at, updated_at, is_pinned, is_public, content_md, parent_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -100,7 +111,6 @@ const useNote = () => {
         [content_md, dayjs().format(), id],
       );
     } catch (error) {
-      console.log(error);
       toast.error("Oops! Error updating note content", {
         position: "top-right",
       });

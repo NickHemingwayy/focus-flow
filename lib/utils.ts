@@ -1,6 +1,11 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+
+dayjs.extend(relativeTime);
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -41,4 +46,14 @@ export function hexToUint8Array(hexString: string) {
       .match(/.{1,2}/g)
       ?.map((byte) => parseInt(byte, 16)) ?? [],
   );
+}
+
+// Date helpers
+export function formatRelativeTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "";
+  const date = dayjs(dateStr);
+  if (!date.isValid()) return "";
+  if (dayjs().diff(date, "month") >= 1)
+    return date.format("MMM D, YYYY, h:mm A");
+  return date.fromNow();
 }

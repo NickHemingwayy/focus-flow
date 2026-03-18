@@ -21,9 +21,12 @@ async function createFtsTable(
   const internalName = (AppSchema.tables as Table[]).find(
     (table) => table.name === tableName,
   )?.internalName;
-  const stringColumns = columns.join(", ");
+
+  const stringColumns = columns.join(", ") + ", is_synced";
+  const is_synced = tableName === "localNotes" ? 0 : 1;
 
   return await db.writeTransaction(async (tx) => {
+    // await tx.execute(`DROP TABLE IF EXISTS fts_${tableName}`);
     // Add FTS table
     await tx.execute(`
       CREATE VIRTUAL TABLE IF NOT EXISTS fts_${tableName}
@@ -32,7 +35,7 @@ async function createFtsTable(
     // Copy over records already in table
     await tx.execute(`
       INSERT OR REPLACE INTO fts_${tableName}(rowid, id, ${stringColumns})
-      SELECT rowid, id, ${generateJsonExtracts(ExtractType.columnOnly, "data", columns)} FROM ${internalName};
+      SELECT rowid, id, ${generateJsonExtracts(ExtractType.columnOnly, "data", columns)}, ${is_synced} as is_synced FROM ${internalName};
     `);
     // Add INSERT, UPDATE and DELETE and triggers to keep fts table in sync with table
     await tx.execute(`
@@ -42,14 +45,14 @@ async function createFtsTable(
         VALUES (
           NEW.rowid,
           NEW.id,
-          ${generateJsonExtracts(ExtractType.columnOnly, "NEW.data", columns)}
+          ${generateJsonExtracts(ExtractType.columnOnly, "NEW.data", columns)}, ${is_synced}
         );
       END;
     `);
     await tx.execute(`
       CREATE TRIGGER IF NOT EXISTS fts_update_trigger_${tableName} AFTER UPDATE ON ${internalName} BEGIN
         UPDATE fts_${tableName}
-        SET ${generateJsonExtracts(ExtractType.columnInOperation, "NEW.data", columns)}
+        SET ${generateJsonExtracts(ExtractType.columnInOperation, "NEW.data", columns)}, is_synced = ${is_synced}
         WHERE rowid = NEW.rowid;
       END;
     `);
@@ -67,6 +70,18 @@ async function createFtsTable(
  * with the data you would like to search on
  */
 export async function configureFts(): Promise<void> {
-  await createFtsTable("localNotes", ["name", "content"]);
-  await createFtsTable("syncedNotes", ["name", "content"]);
+  await createFtsTable("localNotes", [
+    "name",
+    "content_md",
+    "is_pinned",
+    "is_public",
+    "updated_at",
+  ]);
+  await createFtsTable("syncedNotes", [
+    "name",
+    "content_md",
+    "is_pinned",
+    "is_public",
+    "updated_at",
+  ]);
 }

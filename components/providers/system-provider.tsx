@@ -39,6 +39,8 @@ export const db = new PowerSyncDatabase({
 // const connector = new BackendConnector();
 // db.connect(connector);
 
+// await db.disconnectAndClear();
+
 export const SystemProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     configureFts();

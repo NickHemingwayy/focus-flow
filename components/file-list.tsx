@@ -92,15 +92,35 @@ const UsersFileList = () => {
   );
 };
 
-const NoteIcon = ({ note }: { note: NoteType }) => {
-  let icon = <HardDrive />;
+export const NoteIcon = ({
+  note,
+  size = 20,
+  className,
+}: {
+  note: NoteType;
+  size?: number;
+  className?: string;
+}) => {
+  let icon = (
+    <HardDrive size={size} className={cn("text-muted-foreground", className)} />
+  );
   const isPublic = note.is_public;
   const isSynced = note.is_synced;
 
   if (isPublic) {
-    icon = <Globe className="text-emerald-500 dark:text-emerald-300" />;
+    icon = (
+      <Globe
+        className={cn("text-emerald-500 dark:text-emerald-300", className)}
+        size={size}
+      />
+    );
   } else if (isSynced) {
-    icon = <CloudCheck className="text-sky-500 dark:text-sky-300 " />;
+    icon = (
+      <CloudCheck
+        className={cn("text-sky-500 dark:text-sky-300", className)}
+        size={size}
+      />
+    );
   }
   return icon;
 };

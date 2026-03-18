@@ -8,10 +8,17 @@ import { db } from "@/components/providers/system-provider";
  * @returns a modified search term with options.
  */
 function createSearchTermWithOptions(searchTerm: string): string {
-  const searchTermWithOptions: string = `${searchTerm}*`;
-  return searchTermWithOptions;
-}
+  if (!searchTerm.trim()) return "";
 
+  // Tokenize on whitespace, then wrap each token in double quotes so FTS5
+  // treats special characters as literals rather than query operators.
+  // The trailing * outside the quotes enables prefix matching.
+  const tokens = searchTerm.trim().split(/\s+/);
+  return tokens
+    .filter(Boolean)
+    .map((token) => `"${token.replace(/"/g, '""')}"*`)
+    .join(" ");
+}
 /**
  * Search the FTS table for the given searchTerm
  * @param searchTerm
@@ -22,6 +29,7 @@ export async function searchTable(
   searchTerm: string,
   tableName: string,
 ): Promise<any[]> {
+  if (!searchTerm.trim()) return [];
   const searchTermWithOptions = createSearchTermWithOptions(searchTerm);
   return await db.getAll(
     `SELECT * FROM fts_${tableName} WHERE fts_${tableName} MATCH ? ORDER BY rank`,
@@ -33,11 +41,11 @@ export async function searchTable(
 export class SearchResult {
   id: string;
   name: string;
-  content: string;
+  content_md: string;
 
-  constructor(id: string, name: string, content: string) {
+  constructor(id: string, name: string, content_md: string) {
     this.id = id;
     this.name = name;
-    this.content = content;
+    this.content_md = content_md;
   }
 }
