@@ -77,12 +77,12 @@ function highlightMatches(
 // ---------------------------------------------------------------------------
 
 const SearchResult = ({ note, query }: { note: NoteType; query: string }) => {
-  const snippet = extractSnippet(note.content_md ?? "", query);
+  const snippet = extractSnippet(note.content_text ?? "", query);
   const nameParts = highlightMatches(note.name, query);
   const snippetParts = highlightMatches(snippet, query);
   const hasContentMatch =
     !!query &&
-    (note.content_md ?? "").toLowerCase().includes(query.toLowerCase());
+    (note.content_text ?? "").toLowerCase().includes(query.toLowerCase());
   const relativeTime = formatRelativeTime(note.updated_at);
 
   return (
@@ -166,9 +166,9 @@ const PowerSearch = ({ children }: { children: React.ReactNode }) => {
 
   const { data: recentNotes } = useQuery<NoteType>(
     `SELECT * FROM (
-       SELECT id, name, created_at, updated_at, content_md, is_pinned, is_public, parent_id, 0 as is_synced FROM localNotes
+       SELECT id, name, created_at, updated_at, content_text, is_pinned, is_public, parent_id, 0 as is_synced FROM localNotes
        UNION ALL
-       SELECT id, name, created_at, updated_at, content_md, is_pinned, is_public, parent_id, 1 as is_synced FROM syncedNotes
+       SELECT id, name, created_at, updated_at, content_text, is_pinned, is_public, parent_id, 1 as is_synced FROM syncedNotes
      ) ORDER BY updated_at DESC LIMIT 8`,
   );
 

@@ -41,11 +41,11 @@ export async function searchTable(
 export class SearchResult {
   id: string;
   name: string;
-  content_md: string;
+  content_json: string;
 
-  constructor(id: string, name: string, content_md: string) {
+  constructor(id: string, name: string, content_json: string) {
     this.id = id;
     this.name = name;
-    this.content_md = content_md;
+    this.content_json = content_json;
   }
 }

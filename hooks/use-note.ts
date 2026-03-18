@@ -4,6 +4,9 @@ import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
+import { generateText } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
+import { baseExtensions } from "@/components/notepad/notepad";
 
 const useNote = () => {
   const router = useRouter();
@@ -20,7 +23,7 @@ const useNote = () => {
     is_pinned?: number;
     is_public?: number;
     is_synced?: number;
-    content_md?: string;
+    content_json?: string;
     parent_id?: string;
   };
 
@@ -35,26 +38,16 @@ const useNote = () => {
         updated_at: now,
         is_pinned: 0,
         is_public: 0,
-        content_md: "",
+        content_json: "",
+        content_text: "",
         parent_id: null,
         ...partial,
       };
 
       const table = getTableName(note?.is_synced || 0);
 
-      console.log(
-        id,
-        note.name,
-        note.created_at,
-        note.updated_at,
-        note.is_pinned,
-        note.is_public,
-        note.content_md,
-        note.parent_id,
-      );
-
       await powersync.execute(
-        `INSERT INTO ${table} (id, name, created_at, updated_at, is_pinned, is_public, content_md, parent_id)
+        `INSERT INTO ${table} (id, name, created_at, updated_at, is_pinned, is_public, content_json, parent_id)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id,
@@ -63,7 +56,7 @@ const useNote = () => {
           note.updated_at,
           note.is_pinned,
           note.is_public,
-          note.content_md,
+          note.content_json,
           note.parent_id,
         ],
       );
@@ -101,14 +94,16 @@ const useNote = () => {
 
   const updateNoteContent = async (
     id: string,
-    content_md: string,
+    content_json: string,
     isSynced: number,
   ) => {
     try {
+      const content_as_json = JSON.parse(content_json);
+      const content_text = generateText(content_as_json, baseExtensions);
       const table = getTableName(isSynced);
       await powersync.execute(
-        `UPDATE ${table} SET content_md = ?, updated_at = ? WHERE id = ?`,
-        [content_md, dayjs().format(), id],
+        `UPDATE ${table} SET content_json = ?, content_text = ?, updated_at = ? WHERE id = ?`,
+        [content_json, content_text, dayjs().format(), id],
       );
     } catch (error) {
       toast.error("Oops! Error updating note content", {
@@ -189,7 +184,7 @@ const useNote = () => {
         await tx.execute(`DELETE FROM localNotes WHERE id = ?`, [noteId]);
         // Insert into the synced notes table
         await tx.execute(
-          `INSERT INTO syncedNotes (id, name, created_at, updated_at, is_pinned, is_public, content_md, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO syncedNotes (id, name, created_at, updated_at, is_pinned, is_public, content_json, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             item.id,
             item.name,
@@ -197,7 +192,7 @@ const useNote = () => {
             item.updated_at,
             item.is_pinned,
             item.is_public,
-            item.content_md,
+            item.content_json,
             item.parent_id,
           ],
         );
@@ -231,7 +226,7 @@ const useNote = () => {
         await tx.execute(`DELETE FROM syncedNotes WHERE id = ?`, [noteId]);
         // Insert into the synced notes table
         await tx.execute(
-          `INSERT INTO localNotes (id, name, created_at, updated_at, is_pinned, is_public, content_md, parent_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+          `INSERT INTO localNotes (id, name, created_at, updated_at, is_pinned, is_public, content_json, parent_id) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
           [
             item.id,
             item.name,
@@ -239,7 +234,7 @@ const useNote = () => {
             item.updated_at,
             item.is_pinned,
             item.is_public,
-            item.content_md,
+            item.content_json,
             item.parent_id,
           ],
         );

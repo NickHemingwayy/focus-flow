@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, use, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useEffect, useMemo, useRef, useState } from "react";
 import {
   useEditor,
   EditorContent,
@@ -13,7 +13,6 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Editor, Node, mergeAttributes } from "@tiptap/core";
-import { Markdown } from "@tiptap/markdown";
 import * as Y from "yjs";
 import { usePowerSync } from "@powersync/react";
 import { NoteType } from "@/lib/powersync/app-schema";
@@ -25,9 +24,11 @@ import { useSlashMenu, SlashMenu } from "./slash-menu";
 import { PowerSyncYjsProvider } from "@/lib/powersync/yjs/powersync_yjs_provider";
 import Collaboration from "@tiptap/extension-collaboration";
 
-// ─── Image URL input node ─────────────────────────────────────────────────────
+// ─── Image URL extension ──────────────────────────────────────────────────────
 // Renders a URL input when no src is set. Once committed, renders the image
 // with left/right resize handles that update the width attribute directly.
+// Using JSON storage means all attributes (src, alt, width) round-trip
+// perfectly with no serialisation workarounds needed.
 
 const MIN_IMG_WIDTH = 80;
 
@@ -36,8 +37,6 @@ const ImageUrlNodeView: FC<{
   updateAttributes: (attrs: any) => void;
   selected: boolean;
 }> = ({ node, updateAttributes, selected }) => {
-  // Use a ref for the draft value so it is never stale inside commit(),
-  // regardless of how TipTap schedules re-renders for atom nodes.
   const draftRef = useRef<string>("");
   const [draft, setDraftState] = useState("");
   const setDraft = (val: string) => {
@@ -50,7 +49,8 @@ const ImageUrlNodeView: FC<{
   const startXRef = useRef(0);
   const startWidthRef = useRef(0);
 
-  const currentWidth: number = node.attrs.width ?? 500;
+  // null = full width (no inline style constraint); number = explicit px width
+  const currentWidth: number | null = node.attrs.width ?? null;
 
   const commit = () => {
     const trimmed = draftRef.current.trim();
@@ -62,7 +62,9 @@ const ImageUrlNodeView: FC<{
     e.preventDefault();
     e.stopPropagation();
     startXRef.current = e.clientX;
-    startWidthRef.current = currentWidth;
+    // If width is null (full width), read the actual rendered width as the start
+    startWidthRef.current =
+      currentWidth ?? containerRef.current?.offsetWidth ?? 500;
     setIsResizing(true);
 
     const onMouseMove = (ev: MouseEvent) => {
@@ -97,10 +99,10 @@ const ImageUrlNodeView: FC<{
       {node.attrs.src ? (
         <div
           ref={containerRef}
-          className={`relative inline-block rounded-md ${
-            selected ? "ring-2 ring-ring ring-offset-2" : ""
-          }`}
-          style={{ width: currentWidth }}
+          className={`relative rounded-md ${
+            currentWidth === null ? "w-full" : "inline-block"
+          } ${selected ? "ring-2 ring-ring ring-offset-2" : ""}`}
+          style={currentWidth !== null ? { width: currentWidth } : undefined}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -166,11 +168,28 @@ const ImageUrlExtension = Node.create({
     return {
       src: { default: null },
       alt: { default: null },
-      width: { default: 500 },
+      // null = full width; number = explicit px width set by resize handles
+      width: { default: null },
     };
   },
   parseHTML() {
-    return [{ tag: "img[data-type='imageUrl']" }];
+    return [
+      // Our own serialised format (highest priority)
+      { tag: "img[data-type='imageUrl']", priority: 52 },
+      // Plain <img src> from pasted HTML (e.g. rendered markdown from GitHub)
+      {
+        tag: "img[src]",
+        priority: 51,
+        getAttrs: (el: Element) => {
+          const img = el as HTMLImageElement;
+          return {
+            src: img.getAttribute("src"),
+            alt: img.getAttribute("alt") ?? "",
+            width: null, // always full-width on paste
+          };
+        },
+      },
+    ];
   },
   renderHTML({ HTMLAttributes }) {
     return [
@@ -183,77 +202,79 @@ const ImageUrlExtension = Node.create({
   },
 });
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function parseContent(raw: string | null | undefined): object | string {
+  if (!raw) return "";
+  try {
+    return JSON.parse(raw);
+  } catch {
+    // Fallback: treat as plain text if somehow malformed
+    return raw;
+  }
+}
+
+export const baseExtensions = [
+  StarterKit,
+  TaskList,
+  TaskItem.configure({ nested: true }),
+  ImageUrlExtension,
+  Placeholder.configure({
+    placeholder: "Start writing, or type '/' for commands…",
+  }),
+];
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 const NotePad: FC<{ note: NoteType }> = ({ note }) => {
+  console.log("note", note);
   const powerSync = usePowerSync();
   const { updateNoteContent } = useNote();
 
   const { slashExtension, setEditor, slashMenuProps } = useSlashMenu();
 
-  const ydoc = useMemo(() => {
-    return new Y.Doc();
-  }, [note?.id]);
+  const ydoc = useMemo(() => new Y.Doc(), [note?.id]);
 
   useEffect(() => {
     if (note.is_public !== 1) return;
     const provider = new PowerSyncYjsProvider(ydoc, powerSync, note.id);
-
-    return () => {
-      provider.destroy();
-    };
+    return () => provider.destroy();
   }, [ydoc, note.id]);
 
   const handleSaveContent = debounce((editor: Editor) => {
-    const markdown = editor.getMarkdown();
-    updateNoteContent(note.id, markdown, note.is_synced);
+    // getJSON() is a lossless round-trip — all custom node attributes
+    // (imageUrl src, alt, width etc.) are preserved exactly.
+    const json = JSON.stringify(editor.getJSON());
+    updateNoteContent(note.id, json, note.is_synced);
   }, 300);
 
   const tiptapExtensions = useMemo(() => {
-    const base = [
-      StarterKit,
-      Markdown,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      ImageUrlExtension,
-      Placeholder.configure({
-        placeholder: "Start writing, or type '/' for commands…",
-      }),
-      slashExtension,
-    ];
+    const base = [...baseExtensions, slashExtension];
 
-    if (note.is_public !== 1) {
-      return base;
-    }
-
+    if (note.is_public !== 1) return base;
     return [...base, Collaboration.configure({ document: ydoc })];
   }, [note.is_public]);
 
-  // ── TipTap editor ────────────────────────────────────────────────────────
   const editor = useEditor(
     {
       extensions: tiptapExtensions,
-      content: note.content_md,
-      contentType: "markdown",
+      // Parse stored JSON back into the editor. Falls back to empty string
+      // for new notes that have no content_json yet.
+      content: parseContent(note.content_json),
       immediatelyRender: false,
       editorProps: {
         attributes: {
           class: "tiptap-editor focus:outline-none max-w-full min-h-[200px]",
         },
       },
-      onUpdate: ({ editor }) => {
-        handleSaveContent(editor);
-      },
-      onCreate: ({ editor }) => {
-        setEditor(editor);
-      },
+      onUpdate: ({ editor }) => handleSaveContent(editor),
+      onCreate: ({ editor }) => setEditor(editor),
     },
     [tiptapExtensions],
   );
 
   return (
-    <div className={`w-full relative transition-opacity duration-300`}>
-      {/* Bubble menu */}
+    <div className="w-full relative transition-opacity duration-300">
       {editor && (
         <BubbleMenu
           editor={editor}
@@ -305,9 +326,7 @@ const NotePad: FC<{ note: NoteType }> = ({ note }) => {
         </BubbleMenu>
       )}
 
-      {/* Slash command menu */}
       <SlashMenu {...slashMenuProps} editor={editor} />
-
       <EditorContent editor={editor} />
     </div>
   );

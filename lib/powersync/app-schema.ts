@@ -7,7 +7,8 @@ const notesDef = {
   updated_at: column.text,
   is_pinned: column.integer,
   is_public: column.integer,
-  content_md: column.text,
+  content_json: column.text,
+  content_text: column.text,
   parent_id: column.text,
 };
 

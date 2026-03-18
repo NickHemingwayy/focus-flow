@@ -72,14 +72,14 @@ async function createFtsTable(
 export async function configureFts(): Promise<void> {
   await createFtsTable("localNotes", [
     "name",
-    "content_md",
+    "content_text",
     "is_pinned",
     "is_public",
     "updated_at",
   ]);
   await createFtsTable("syncedNotes", [
     "name",
-    "content_md",
+    "content_text",
     "is_pinned",
     "is_public",
     "updated_at",

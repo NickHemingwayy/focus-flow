@@ -177,16 +177,16 @@ const FileMenu = memo(
     const handleDuplicateNote = async () => {
       const table = getTableName(note.is_synced);
       const contentRes = (await powersync.get(
-        `SELECT content_md from ${table} WHERE id = ?`,
+        `SELECT content_json from ${table} WHERE id = ?`,
         [note.id],
-      )) as { content_md: string };
+      )) as { content_json: string };
       createNote({
         name: note.name + " Copy",
         parent_id: note.parent_id,
         is_synced: note.is_synced,
         is_public: note.is_public,
         is_pinned: note.is_pinned,
-        content_md: contentRes?.content_md || "",
+        content_json: contentRes?.content_json || "",
       });
     };
     const handleCreateChildNote = () => {
